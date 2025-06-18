@@ -1,34 +1,46 @@
 const express = require('express');
 const router = express.Router();
 const { 
-    getNotifications,
-    markAsRead,
-    markAllAsRead,
-    deleteNotification,
-    getReminders,
-    markReminderAsSeen
-} = require('../controllers/NotificationController');
+  getNotifications,
+  markAsRead,
+  markAllAsRead,
+  deleteNotification,
+  getReminders,
+  markReminderAsSeen
+} = require('../controllers/notificationController');
 const { protect } = require('../middleware/authMiddleware');
 
-// All routes are protected and require authentication
+// Apply authentication middleware to all notification routes
 router.use(protect);
 
-// Get all notifications for the logged-in user
+// @route   GET /api/notifications
+// @desc    Get all notifications for the authenticated user
+// @access  Private
 router.get('/', getNotifications);
 
-// Get all reminders for the logged-in user
+// @route   GET /api/notifications/reminders
+// @desc    Get all active reminders (appointments and tasks) for the user
+// @access  Private
 router.get('/reminders', getReminders);
 
-// Mark a notification as read
+// @route   PUT /api/notifications/:id/read
+// @desc    Mark a specific notification as read
+// @access  Private
 router.put('/:id/read', markAsRead);
 
-// Mark all notifications as read
+// @route   PUT /api/notifications/read-all
+// @desc    Mark all notifications as read for the authenticated user
+// @access  Private
 router.put('/read-all', markAllAsRead);
 
-// Delete a notification
+// @route   DELETE /api/notifications/:id
+// @desc    Delete a specific notification
+// @access  Private
 router.delete('/:id', deleteNotification);
 
-// Mark a reminder as seen
+// @route   PUT /api/notifications/reminders/:entityType/:entityId/seen
+// @desc    Mark a specific reminder as seen/processed
+// @access  Private
 router.put('/reminders/:entityType/:entityId/seen', markReminderAsSeen);
 
 module.exports = router;

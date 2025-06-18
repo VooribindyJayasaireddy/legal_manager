@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs'); // For password hashing
+const crypto = require('crypto'); // For generating password reset tokens
 
 // Define the User Schema
 const userSchema = new mongoose.Schema({
@@ -41,7 +42,7 @@ const userSchema = new mongoose.Schema({
   phoneNumber: {
     type: String,
     trim: true,
-    match: [/^[0-9]{10}$/, 'Please enter a valid 10-digit phone number']
+    match: [/^[0-9]{10,15}$/, 'Please enter a valid phone number (10-15 digits)']
   },
   // Status of the user account (e.g., active, inactive, pending)
   status: {
@@ -56,7 +57,11 @@ const userSchema = new mongoose.Schema({
   // Optional: avatar or profile picture URL
   avatar: {
     type: String,
-  }
+  },
+  // Password reset token
+  resetPasswordToken: String,
+  // Expiry time for the password reset token (default: 10 minutes from creation)
+  resetPasswordExpire: Date
 }, {
   // Mongoose will automatically add `createdAt` and `updatedAt` fields
   timestamps: true,
@@ -89,6 +94,24 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   // Note: 'select: false' on the password field means you might need to explicitly select it
   // in your query (e.g., `.select('+password')`) before calling this method if you're not getting it by default.
   return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// --- Method to generate and hash password reset token ---
+userSchema.methods.getResetPasswordToken = function() {
+  // Generate a random token using Node's crypto module
+  const resetToken = crypto.randomBytes(20).toString('hex');
+
+  // Hash the token and set it to resetPasswordToken field
+  this.resetPasswordToken = crypto
+    .createHash('sha256')
+    .update(resetToken)
+    .digest('hex');
+
+  // Set token expiry time (10 minutes from now)
+  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+  // Return the unhashed token (we'll send this to the user's email)
+  return resetToken;
 };
 
 // Create and export the User model
