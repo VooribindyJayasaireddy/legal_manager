@@ -8,9 +8,6 @@ router.use(protect); // All AI routes are protected
 // POST /api/ai/chat - General AI chat
 router.post('/chat', aiController.handleChatQuery);
 
-// POST /api/ai/draft - Generate and save a legal draft via AI
-router.post('/draft', aiController.generateDraft); 
-
 // POST /api/ai/extract - Extract structured information via AI
 router.post('/extract', aiController.extractInformation);
 

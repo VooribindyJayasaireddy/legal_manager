@@ -52,6 +52,7 @@ exports.createCase = async (req, res) => {
 
     res.status(201).json({
       message: 'Case created successfully',
+      caseId: savedCase._id,
       case: populatedCase
     });
 
@@ -79,23 +80,44 @@ exports.getCases = async (req, res) => {
   }
 };
 
+const mongoose = require('mongoose');
+
 // @desc    Get a single case by ID
 // @route   GET /api/cases/:id
 // @access  Private
 exports.getCaseById = async (req, res) => {
   try {
-    // Find a case by ID and ensure it belongs to the authenticated user
-    const singleCase = await Case.findOne({ _id: req.params.id, user: req.user._id })
-      .populate('clients', 'firstName lastName email'); // Populate client details
-
-    if (!singleCase) {
-      return res.status(404).json({ message: 'Case not found.' });
+    // Check if ID is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid case ID format' 
+      });
     }
 
-    res.status(200).json(singleCase);
+    const caseItem = await Case.findOne({ 
+      _id: req.params.id,
+      user: req.user._id 
+    }).populate('clients', 'name email phone');
+    
+    if (!caseItem) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Case not found or you do not have permission to view it' 
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: caseItem
+    });
   } catch (error) {
     console.error('Error fetching case by ID:', error);
-    res.status(500).json({ message: 'Server error while fetching case.' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error while fetching case',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
@@ -183,5 +205,51 @@ exports.deleteCase = async (req, res) => {
   } catch (error) {
     console.error('Error deleting case:', error);
     res.status(500).json({ message: 'Server error during case deletion.' });
+  }
+};
+
+// @desc    Get case statistics
+// @route   GET /api/cases/stats
+// @access  Private
+exports.getCaseStats = async (req, res) => {
+  try {
+    const stats = await Case.aggregate([
+      {
+        $match: { 
+          user: req.user._id 
+        }
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Convert array to object for easier access
+    const statsByStatus = {};
+    let total = 0;
+    
+    stats.forEach(stat => {
+      statsByStatus[stat._id] = stat.count;
+      total += stat.count;
+    });
+
+    res.json({
+      success: true,
+      data: {
+        total,
+        byStatus: statsByStatus,
+        statuses: stats
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching case stats:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching case statistics',
+      error: error.message 
+    });
   }
 };

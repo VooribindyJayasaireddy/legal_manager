@@ -1,6 +1,5 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const asyncHandler = require('express-async-handler');
-const Draft = require('../models/Draft');   // Import the Draft model
 const Case = require('../models/Case');     // Import Case model for context
 const Client = require('../models/Client'); // Import Client model for context
 

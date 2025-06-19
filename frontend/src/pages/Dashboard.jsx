@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useContext } from 'react';
 import moment from 'moment';
-import { getCases, getDocuments, getUpcomingAppointments, getTasks } from '../api';
+import api from '../utils/api';
 import { Briefcase } from 'lucide-react';
 import Layout from '../components/Layout';
 import { AuthContext } from '../App';
@@ -19,6 +19,8 @@ const Dashboard = () => {
   const [documents, setDocuments] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -33,18 +35,60 @@ const Dashboard = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // API functions
+  const getCases = async () => {
+    try {
+      const response = await api.get('/cases');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching cases:', error);
+      return [];
+    }
+  };
+
+  const getDocuments = async () => {
+    try {
+      const response = await api.get('/documents/recent');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+      return [];
+    }
+  };
+
+  const getUpcomingAppointments = async () => {
+    try {
+      const response = await api.get('/appointments/upcoming');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching appointments:', error);
+      return [];
+    }
+  };
+
+  const getTasks = async () => {
+    try {
+      const response = await api.get('/tasks');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      return [];
+    }
+  };
+
   const loadDashboardData = async () => {
     try {
-      const [casesRes, documentsRes, appointmentsRes, tasksRes] = await Promise.all([
+      const [casesData, documentsData, appointmentsData, tasksData] = await Promise.all([
         getCases(),
         getDocuments(),
         getUpcomingAppointments(),
         getTasks()
       ]);
-      setCases(casesRes.data);
-      setDocuments(documentsRes.data);
-      setAppointments(appointmentsRes.data);
-      setTasks(tasksRes.data);
+      
+      setCases(Array.isArray(casesData) ? casesData : []);
+      setDocuments(Array.isArray(documentsData) ? documentsData : []);
+      setAppointments(Array.isArray(appointmentsData) ? appointmentsData : []);
+      setTasks(Array.isArray(tasksData) ? tasksData : []);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     }

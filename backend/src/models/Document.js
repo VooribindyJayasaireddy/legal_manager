@@ -18,19 +18,24 @@ const documentSchema = new mongoose.Schema({
     ref: 'User', // Refers to the 'User' model
     required: true,
   },
-  // Optional: Reference to the Case this document belongs to.
-  // A document can be associated with a case, but it's not strictly required.
+  // Optional: Reference to the Case this document belongs to (for case-attached documents)
   case: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Case', // Refers to the 'Case' model
-    required: false, // Make it optional
+    ref: 'Case',
+    required: false,
   },
-  // Optional: Reference to the Client this document belongs to.
-  // A document can also be associated directly with a client.
+  // Optional: Reference to the Client this document belongs to
   client: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Client', // Refers to the 'Client' model
-    required: false, // Make it optional
+    ref: 'Client',
+    required: false,
+  },
+  // Document type to distinguish between case-attached and standalone documents
+  documentType: {
+    type: String,
+    enum: ['case', 'standalone'],
+    default: 'standalone',
+    required: true
   },
   // The original name of the file when it was uploaded by the user.
   originalName: {

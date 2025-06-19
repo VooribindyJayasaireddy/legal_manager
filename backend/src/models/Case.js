@@ -15,6 +15,37 @@ const caseSchema = new mongoose.Schema({
     required: [true, 'Case name is required'],
     trim: true,
   },
+  // The type of case (e.g., "Family Law", "Criminal Defense", "Corporate Litigation").
+  caseType: {
+    type: String,
+    required: [true, 'Case type is required'],
+    trim: true,
+    enum: {
+      values: [
+        'civil',
+        'criminal',
+        'family',
+        'corporate',
+        'property',
+        'labor',
+        'tax',
+        'intellectual_property',
+        'bankruptcy',
+        'immigration',
+        'constitutional',
+        'environmental',
+        'real_estate',
+        'wills_trusts',
+        'personal_injury',
+        'medical_malpractice',
+        'employment',
+        'consumer_protection',
+        'cyber_law',
+        'other'
+      ],
+      message: 'Please select a valid case type'
+    }
+  },
   // A unique identifier or number for the case, often assigned by the court or internal system.
   caseNumber: {
     type: String,
@@ -40,11 +71,6 @@ const caseSchema = new mongoose.Schema({
     type: String,
     enum: ['open', 'pending', 'closed', 'on_hold', 'archived'], // Allowed statuses
     default: 'open', // Default status for new cases
-  },
-  // The type of case (e.g., "Family Law", "Criminal Defense", "Corporate Litigation").
-  caseType: {
-    type: String,
-    trim: true,
   },
   // The date when the case officially started or was opened.
   startDate: {

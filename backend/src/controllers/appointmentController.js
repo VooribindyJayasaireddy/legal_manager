@@ -56,6 +56,24 @@ exports.createAppointment = async (req, res) => {
 // @desc    Get all appointments for the authenticated user
 // @route   GET /api/appointments
 // @access  Private
+exports.getUpcomingAppointments = async (req, res) => {
+  try {
+    const now = new Date();
+    const appointments = await Appointment.find({ 
+      user: req.user._id,
+      startTime: { $gte: now }
+    })
+      .populate('client', 'firstName lastName email')
+      .populate('case', 'caseName caseNumber')
+      .sort({ startTime: 1 });
+
+    res.status(200).json(appointments);
+  } catch (error) {
+    console.error('Error fetching upcoming appointments:', error);
+    res.status(500).json({ message: 'Server error while fetching upcoming appointments.' });
+  }
+};
+
 exports.getAppointments = async (req, res) => {
   try {
     // Find all appointments associated with the authenticated user's ID

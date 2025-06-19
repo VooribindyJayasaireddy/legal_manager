@@ -43,7 +43,6 @@ const appointmentRoutes = require('./src/routes/appointmentRoutes');
 const taskRoutes = require('./src/routes/taskRoutes');
 const userRoutes = require('./src/routes/userRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
-const draftRoutes = require('./src/routes/DraftsRoutes');
 const aiRoutes = require('./src/routes/aiRoutes');
 
 // Use Routes
@@ -55,7 +54,6 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/drafts', draftRoutes);
 app.use('/api/ai', aiRoutes);
 
 // Health check route
