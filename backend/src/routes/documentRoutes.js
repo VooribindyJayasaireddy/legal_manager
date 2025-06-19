@@ -73,23 +73,21 @@ const handleMulterError = (err, req, res, next) => {
 
 // --- Document Routes ---
 
-// POST /api/documents/upload - Upload a new document
-// `upload.single('documentFile')` expects a field named 'documentFile' in the form data
+// POST /api/documents/upload - Upload a new document (standalone or case-attached)
+// Expects multipart/form-data with file and metadata
 router.post(
   '/upload', 
   protect, 
-  (req, res, next) => {
-    // Log request info for debugging
-    console.log('File upload request received');
-    console.log('Headers:', JSON.stringify(req.headers, null, 2));
-    next();
-  },
-  upload.single('documentFile'),
+  upload.single('file'),
   handleMulterError,
   documentController.uploadDocument
 );
 
-// GET /api/documents - Get all documents for the authenticated user
+// GET /api/documents/recent - Get recent documents
+router.get('/recent', protect, documentController.getRecentDocuments);
+
+// GET /api/documents - Get documents with optional filtering
+// Query params: documentType (case|standalone), caseId
 router.get('/', protect, documentController.getDocuments);
 
 // GET /api/documents/:id - Get a single document by ID

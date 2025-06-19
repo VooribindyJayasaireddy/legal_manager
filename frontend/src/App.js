@@ -6,6 +6,10 @@ import axios from 'axios';
 import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
+import Cases from './pages/Cases';
+import CreateCase from './pages/CreateCase';
+import CaseDetails from './pages/CaseDetails';
+import EditCase from './pages/EditCase';
 
 // Components
 import GavelLoading from './components/GavelLoading';
@@ -253,6 +257,10 @@ function App() {
             {/* Protected Routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/cases" element={<Cases />} />
+              <Route path="/cases/new" element={<CreateCase />} />
+              <Route path="/cases/:id" element={<CaseDetails />} />
+              <Route path="/cases/:id/edit" element={<EditCase />} />
             </Route>
 
             {/* Default Redirect */}

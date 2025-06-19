@@ -8,6 +8,9 @@ const { protect } = require('../middleware/authMiddleware');
 // POST /api/appointments - Create a new appointment
 router.post('/', protect, appointmentController.createAppointment);
 
+// GET /api/appointments/upcoming - Get upcoming appointments
+router.get('/upcoming', protect, appointmentController.getUpcomingAppointments);
+
 // GET /api/appointments - Get all appointments for the authenticated user
 router.get('/', protect, appointmentController.getAppointments);
 

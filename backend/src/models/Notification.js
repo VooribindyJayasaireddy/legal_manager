@@ -33,7 +33,7 @@ const notificationSchema = new mongoose.Schema({
     },
     onModel: {
         type: String,
-        enum: ['Case', 'Client', 'Document', 'Draft', 'Appointment', 'Task']
+        enum: ['Case', 'Client', 'Document', 'Appointment', 'Task']
     }
 }, {
     timestamps: true

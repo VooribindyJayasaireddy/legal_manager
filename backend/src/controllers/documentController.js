@@ -37,9 +37,19 @@ exports.uploadDocument = async (req, res) => {
 
     // Extract necessary data from the request
     const { originalname, filename, mimetype, size } = req.file;
-    const { caseId, clientId, description, tags, title } = req.body; // Extract additional form fields
+    const { caseId, clientId, description, tags, title, documentType = 'standalone' } = req.body;
     
-    // Title is now required, so we'll use the provided title
+    // Validate document type
+    if (!['case', 'standalone'].includes(documentType)) {
+      return res.status(400).json({ message: 'Invalid document type. Must be either "case" or "standalone"' });
+    }
+    
+    // If document type is 'case', caseId is required
+    if (documentType === 'case' && !caseId) {
+      return res.status(400).json({ message: 'caseId is required for case documents' });
+    }
+    
+    // Title is required
     if (!title || typeof title !== 'string' || title.trim() === '') {
       // Clean up the uploaded file if validation fails
       if (req.file && req.file.path) {
@@ -65,17 +75,16 @@ exports.uploadDocument = async (req, res) => {
     const newDocument = new Document({
       title: documentTitle, // Use provided title or fallback to filename without extension
       user: req.user._id, // Assuming req.user is populated by your authentication middleware
+      documentType,
+      case: documentType === 'case' ? caseId : null,
+      client: clientId || null,
       originalName: originalname,
       fileName: filename, // Multer provides a unique filename
       fileType: mimetype,
-      filePath: `/uploads/documents/${filename}`, // Path where the file is accessible
+      filePath: req.file.path,
       fileSize: size,
-      description: description,
-      // Conditionally add case and client IDs if they exist
-      ...(caseId && { case: caseId }),
-      ...(clientId && { client: clientId }),
-      // Parse tags if provided as a comma-separated string
-      tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
+      description: description || '',
+      tags: tags ? (Array.isArray(tags) ? tags : tags.split(',').map(tag => tag.trim())) : [],
       uploadedBy: req.user._id,
     });
 
@@ -125,21 +134,50 @@ exports.uploadDocument = async (req, res) => {
   }
 };
 
-// @desc    Get all documents for the authenticated user
+// @desc    Get all documents for the authenticated user with optional filtering
 // @route   GET /api/documents
 // @access  Private
-exports.getDocuments = async (req, res) => {
+exports.getRecentDocuments = async (req, res) => {
   try {
     const documents = await Document.find({ user: req.user._id })
-      .populate('case', 'caseName caseNumber') // Populate case details if linked
-      .populate('client', 'firstName lastName') // Populate client details if linked
-      .populate('uploadedBy', 'firstName lastName username') // Populate uploader details with username
-      .sort({ uploadDate: -1 }); // Sort by most recent first
+      .populate('case', 'caseName caseNumber')
+      .populate('client', 'firstName lastName')
+      .populate('uploadedBy', 'name')
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    res.status(200).json(documents);
+  } catch (error) {
+    console.error('Error fetching recent documents:', error);
+    res.status(500).json({ message: 'Server error while fetching recent documents' });
+  }
+};
+
+exports.getDocuments = async (req, res) => {
+  try {
+    const { documentType, caseId } = req.query;
+    const query = { user: req.user._id };
+    
+    // Apply filters if provided
+    if (documentType) {
+      query.documentType = documentType;
+    }
+    
+    if (caseId) {
+      query.case = caseId;
+    }
+    
+    // Find documents based on query
+    const documents = await Document.find(query)
+      .populate('case', 'caseName caseNumber')
+      .populate('client', 'firstName lastName')
+      .populate('uploadedBy', 'name')
+      .sort({ createdAt: -1 }); // Sort by upload date, newest first
 
     res.status(200).json(documents);
   } catch (error) {
     console.error('Error fetching documents:', error);
-    res.status(500).json({ message: 'Server error while fetching documents.' });
+    res.status(500).json({ message: 'Server error while fetching documents' });
   }
 };
 

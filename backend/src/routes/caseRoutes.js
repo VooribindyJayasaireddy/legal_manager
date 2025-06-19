@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const caseController = require('../controllers/caseController');
-const { protect } = require('../middleware/authMiddleware'); // Assuming you have an auth middleware
+const { protect } = require('../middleware/authMiddleware');
 
 // --- Case Routes ---
 
@@ -10,6 +10,9 @@ router.post('/', protect, caseController.createCase);
 
 // GET /api/cases - Get all cases for the authenticated user
 router.get('/', protect, caseController.getCases);
+
+// GET /api/cases/stats - Get case statistics
+router.get('/stats', protect, caseController.getCaseStats);
 
 // GET /api/cases/:id - Get a single case by ID
 router.get('/:id', protect, caseController.getCaseById);

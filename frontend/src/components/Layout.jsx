@@ -104,11 +104,9 @@ const Sidebar = ({ isOpen, onClose }) => {
         </svg>
       </button>
       <div className="p-6 flex items-center space-x-3">
-        <div className="w-8 h-8 bg-gray-900 rounded-md flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M10.394 2.08a1 1 0 01.812 0l7 3a1 1 0 010 1.84l-7 3.75a1 1 0 01-.812 0l-7-3.75a1 1 0 010-1.84l7-3z" />
-            <path d="M2.5 10.5a1 1 0 01.8-.4h13.4a1 1 0 01.8.4l.9 1.2a1 1 0 01-.8 1.6H2.5a1 1 0 01-.8-1.6l.8-1.2z" />
-            <path d="M2.5 15.5a1 1 0 01.8-.4h13.4a1 1 0 01.8.4l.9 1.2a1 1 0 01-.8 1.6H2.5a1 1 0 01-.8-1.6l.8-1.2z" />
+        <div className="flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-900" viewBox="0 -960 960 960" fill="currentColor">
+            <path d="M160-120v-80h480v80H160Zm226-194L160-540l84-86 228 226-86 86Zm254-254L414-796l86-84 226 226-86 86Zm184 408L302-682l56-56 522 522-56 56Z"/>
           </svg>
         </div>
         <span className="text-lg font-semibold text-gray-900">ADVOCY</span>
@@ -263,6 +261,46 @@ const NavItem = ({ icon, text, active, href }) => {
 // Header Component
 const Header = ({ user }) => {
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
+  const [userData, setUserData] = useState({});
+  const navigate = useNavigate();
+
+  // Fetch user data from the backend
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await api.get('/auth/me');
+        if (response.data) {
+          setUserData(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user data:', error);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  // Get user's initial from real name or fallback to 'U'
+  const getUserInitial = () => {
+    // First try to get from fetched user data
+    if (userData?.first_name) return userData.first_name.charAt(0).toUpperCase();
+    if (userData?.name) return userData.name.trim().charAt(0).toUpperCase();
+    
+    // Fallback to user prop if available
+    if (user?.first_name) return user.first_name.charAt(0).toUpperCase();
+    if (user?.name) return user.name.trim().charAt(0).toUpperCase();
+    
+    return 'U';
+  };
+  
+  // Get user's display name for tooltip
+  const getDisplayName = () => {
+    if (userData?.first_name) return userData.first_name;
+    if (userData?.name) return userData.name.trim().split(' ')[0];
+    if (user?.first_name) return user.first_name;
+    if (user?.name) return user.name.trim().split(' ')[0];
+    return 'User';
+  };
 
   useEffect(() => {
     const fetchUnreadNotifications = async () => {
@@ -286,12 +324,10 @@ const Header = ({ user }) => {
       <div className="flex-1 flex justify-end pr-4">
         <SearchBar />
       </div>
-      <div className="flex items-center space-x-6">
+      <div className="flex items-center space-x-4">
         <button 
           className="relative p-2 rounded-full hover:bg-gray-100 transition-colors duration-200"
           onClick={() => {
-            // TODO: Implement notification panel toggle
-            // For now, mark as read when clicked
             if (hasUnreadNotifications) {
               setHasUnreadNotifications(false);
               // In a real app, you would also update the server that notifications were seen
@@ -304,18 +340,13 @@ const Header = ({ user }) => {
             <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500"></span>
           )}
         </button>
-        <div className="flex items-center space-x-3 border-l border-gray-200 pl-6">
-          <div className="group relative">
-            <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold group-hover:bg-blue-700 transition-colors duration-200 cursor-pointer">
-              {user?.first_name?.charAt(0)?.toUpperCase() || user?.name?.split(' ')[0]?.charAt(0)?.toUpperCase()}
-            </div>
-          </div>
-          <div className="hidden md:block">
-            <div className="relative group">
-              <div className="text-sm font-semibold text-gray-800">
-                {user?.first_name || user?.name?.split(' ')[0]}
-              </div>
-            </div>
+        <div className="flex items-center">
+          <div 
+            className="w-9 h-9 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center text-white text-base font-bold shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
+            onClick={() => navigate('/profile')}
+            title={getDisplayName()}
+          >
+            {getUserInitial()}
           </div>
         </div>
       </div>
