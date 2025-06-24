@@ -1,9 +1,10 @@
 // src/pages/Dashboard.jsx
 
 import React, { useEffect, useState, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import moment from 'moment';
 import api from '../utils/api';
-import { Briefcase } from 'lucide-react';
+import { Briefcase, Eye, Pencil } from 'lucide-react';
 import Layout from '../components/Layout';
 import { AuthContext } from '../App';
 
@@ -36,12 +37,14 @@ const Dashboard = () => {
   }, []);
 
   // API functions
-  const getCases = async () => {
+  const getActiveCases = async () => {
     try {
-      const response = await api.get('/cases');
-      return response.data;
+      // Add status=active query parameter to filter active cases
+      const response = await api.get('/cases?status=active');
+      return Array.isArray(response.data) ? response.data : [];
     } catch (error) {
-      console.error('Error fetching cases:', error);
+      console.error('Error fetching active cases:', error);
+      setError('Failed to load active cases. Please try again.');
       return [];
     }
   };
@@ -78,19 +81,26 @@ const Dashboard = () => {
 
   const loadDashboardData = async () => {
     try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Fetch all data in parallel
       const [casesData, documentsData, appointmentsData, tasksData] = await Promise.all([
-        getCases(),
+        getActiveCases(),
         getDocuments(),
         getUpcomingAppointments(),
         getTasks()
       ]);
       
-      setCases(Array.isArray(casesData) ? casesData : []);
-      setDocuments(Array.isArray(documentsData) ? documentsData : []);
-      setAppointments(Array.isArray(appointmentsData) ? appointmentsData : []);
-      setTasks(Array.isArray(tasksData) ? tasksData : []);
+      setCases(casesData);
+      setDocuments(documentsData);
+      setAppointments(appointmentsData);
+      setTasks(tasksData);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
+      setError('Failed to load dashboard data. Please refresh the page to try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -100,7 +110,8 @@ const Dashboard = () => {
     moment(app.date).format('YYYY-MM-DD') === today
   );
 
-  const activeCases = cases.filter(c => c.status === 'Active');
+  // Active cases are already filtered from the API
+  const activeCases = cases; // Since we're only fetching active cases from the API
   const pendingDocuments = documents.filter(d => d.status === 'Pending');
   const upcomingMeetings = appointments.length;
   const clientUpdates = 3; // Placeholder until we have API
@@ -146,6 +157,7 @@ const Dashboard = () => {
   
   // Get the display name
   const displayName = getDisplayName(user);
+  const navigate = useNavigate();
   
 
   return (
@@ -194,12 +206,15 @@ const Dashboard = () => {
           />
         </div>
 
-          {/* Recent Cases */}
+          {/* Active Cases */}
           <div>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Recent Cases</h2>
-              <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                View All Cases →
+              <h2 className="text-xl font-semibold">Active Cases</h2>
+              <button 
+                onClick={() => window.location.href = '/cases'}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
+              >
+                View All Cases <span className="ml-1">→</span>
               </button>
             </div>
             <div className="bg-white shadow rounded-lg overflow-hidden">
@@ -218,50 +233,114 @@ const Dashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {cases.slice(0, 5).map((c) => (
-                      <tr key={c._id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{c.caseNumber || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">{c.caseType || 'Civil'}</div>
+                    {isLoading ? (
+                      <tr>
+                        <td colSpan="6" className="px-6 py-8 text-center">
+                          <div className="flex justify-center">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                          </div>
                         </td>
+                      </tr>
+                    ) : error ? (
+                      <tr>
+                        <td colSpan="6" className="px-6 py-8 text-center text-red-600">
+                          {error}
+                        </td>
+                      </tr>
+                    ) : cases.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                          No active cases found
+                        </td>
+                      </tr>
+                    ) : (
+                      cases.slice(0, 5).map((c) => (
+                      <tr 
+                        key={c._id} 
+                        className="hover:bg-gray-50 cursor-pointer"
+                        onClick={() => navigate(`/cases/${c._id}`)}
+                      >
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{c.clientName || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">
-                            {c.clientPhone || ''}
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-md bg-blue-100 text-blue-600 font-medium">
+                              {c.caseName?.charAt(0)?.toUpperCase() || '?'}
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {c.caseName || 'Unnamed Case'}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {c.caseNumber || 'No case number'}
+                              </div>
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{c.court || 'District Court'}</div>
-                          <div className="text-sm text-gray-500">{c.judge || 'Hon. Judge'}</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {c.clients && c.clients.length > 0 
+                              ? c.clients[0].name 
+                              : 'No client'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {c.clients && c.clients[0]?.phone || ''}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
-                            {c.nextHearing ? moment(c.nextHearing).format('MMM D, YYYY') : 'Not scheduled'}
+                            {c.court || 'No court specified'}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {c.nextHearing ? moment(c.nextHearing).format('h:mm A') : ''}
+                            {c.judge || 'No judge specified'}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            c.status === 'Active' ? 'bg-green-100 text-green-800' :
-                            c.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                            c.status === 'Closed' ? 'bg-gray-100 text-gray-800' :
-                            'bg-blue-100 text-blue-800'
+                          <div className="text-sm text-gray-900">
+                            {c.nextHearingDate 
+                              ? moment(c.nextHearingDate).format('MMM D, YYYY') 
+                              : 'Not scheduled'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {c.nextHearingDate ? moment(c.nextHearingDate).format('h:mm A') : ''}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            c.status === 'open' ? 'bg-green-100 text-green-800' :
+                            c.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            c.status === 'on_hold' ? 'bg-orange-100 text-orange-800' :
+                            c.status === 'closed' ? 'bg-gray-100 text-gray-800' :
+                            c.status === 'archived' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
                           }`}>
-                            {c.status || 'Active'}
+                            {c.status ? c.status.split('_').map(word => 
+                              word.charAt(0).toUpperCase() + word.slice(1)
+                            ).join(' ') : 'N/A'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button className="text-blue-600 hover:text-blue-900 mr-3">View</button>
-                          <button className="text-gray-600 hover:text-gray-900">
-                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
-                            </svg>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.location.href = `/cases/${c._id}`;
+                            }}
+                            className="text-blue-600 hover:text-blue-900 mr-4"
+                            title="View case"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.location.href = `/cases/${c._id}/edit`;
+                            }}
+                            className="text-gray-600 hover:text-gray-900"
+                            title="Edit case"
+                          >
+                            <Pencil className="h-4 w-4" />
                           </button>
                         </td>
                       </tr>
-                    ))}
+                    )))}
                   </tbody>
                 </table>
               </div>
@@ -341,16 +420,16 @@ const Dashboard = () => {
               <div className="mb-4">
                 <p className="text-gray-600">How can I help you today?</p>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  <button className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1 rounded transition-colors">
+                  <button className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded transition-colors">
                     Case research
                   </button>
-                  <button className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1 rounded transition-colors">
+                  <button className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded transition-colors">
                     Document review
                   </button>
-                  <button className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1 rounded transition-colors">
+                  <button className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded transition-colors">
                     Schedule meeting
                   </button>
-                  <button className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1 rounded transition-colors">
+                  <button className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded transition-colors">
                     Generate template
                   </button>
                 </div>
@@ -361,7 +440,7 @@ const Dashboard = () => {
                   className="flex-grow border border-r-0 rounded-l p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Ask me anything..."
                 />
-                <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-r transition-colors">
+                <button className="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-r transition-colors">
                   Send
                 </button>
               </div>

@@ -3,7 +3,6 @@ import React, { useEffect, useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../App';
 import GavelLoading from './GavelLoading';
-import SearchBar from './SearchBar';
 
 import { 
   Home, 
@@ -171,12 +170,6 @@ const Sidebar = ({ isOpen, onClose }) => {
             active={isActive('/appointments')} 
             href="/appointments"
           />
-          <NavItem 
-            icon={<FileEdit size={18} />} 
-            text="Drafts" 
-            active={isActive('/drafts')} 
-            href="/drafts"
-          />
         </nav>
 
         <div className="px-6 py-3 mt-2">
@@ -273,12 +266,25 @@ const Header = ({ user }) => {
           setUserData(response.data);
         }
       } catch (error) {
-        console.error('Failed to fetch user data:', error);
+        // Handle 404 or other errors gracefully
+        if (error.response && error.response.status === 404) {
+          console.log('User profile endpoint not available, using default user data');
+          // Set default user data if available from props
+          if (user) {
+            setUserData({
+              name: user.name || 'User',
+              email: user.email || '',
+              role: user.role || 'user'
+            });
+          }
+        } else {
+          console.error('Failed to fetch user data:', error);
+        }
       }
     };
 
     fetchUserData();
-  }, []);
+  }, [user]);
 
   // Get user's initial from real name or fallback to 'U'
   const getUserInitial = () => {
@@ -303,12 +309,18 @@ const Header = ({ user }) => {
   };
 
   useEffect(() => {
+    // Only fetch notifications if user is authenticated
+    if (!user) return;
+    
     const fetchUnreadNotifications = async () => {
       try {
         const res = await api.get('/notifications/unread/count');
         setHasUnreadNotifications(res.data.count > 0);
       } catch (err) {
-        console.error('Failed to fetch unread notifications count', err);
+        // Don't log 401 errors as they're expected when not authenticated
+        if (err?.response?.status !== 401) {
+          console.error('Failed to fetch unread notifications count', err);
+        }
       }
     };
     
@@ -317,13 +329,10 @@ const Header = ({ user }) => {
     const interval = setInterval(fetchUnreadNotifications, 30000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [user]); // Add user as a dependency
   
   return (
-    <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 bg-white shadow-sm">
-      <div className="flex-1 flex justify-end pr-4">
-        <SearchBar />
-      </div>
+    <div className="flex justify-end items-center px-6 py-4 border-b border-gray-200 bg-white shadow-sm">
       <div className="flex items-center space-x-4">
         <button 
           className="relative p-2 rounded-full hover:bg-gray-100 transition-colors duration-200"
@@ -414,7 +423,7 @@ const Layout = ({ children }) => {
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header user={user} />
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-6 mt-16 md:mt-0">
+        <main className="flex-1 overflow-y-auto bg-gray-50 mt-16 md:mt-0">
           {children}
         </main>
       </div>

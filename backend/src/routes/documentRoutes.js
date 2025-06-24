@@ -2,53 +2,17 @@
 
 const express = require('express');
 const router = express.Router();
-const documentController = require('../controllers/documentController');
-const { protect } = require('../middleware/authMiddleware'); // Assuming you have an auth middleware
 const multer = require('multer');
+const documentController = require('../controllers/documentController');
+const { protect } = require('../middleware/authMiddleware');
+const upload = require('../config/multerConfig');
 const path = require('path');
-const crypto = require('crypto'); // For generating unique filenames
 const fs = require('fs');
 
-// --- Multer Configuration for File Uploads ---
-// Define storage for files
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // Files will be stored in 'backend/uploads/documents'
-    const uploadPath = path.join(__dirname, '../../uploads/documents');
-    // Ensure the directory exists
-    // fs.mkdirSync(uploadPath, { recursive: true }); // This should ideally be handled once on server start
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    // Generate a unique filename using a timestamp and a random string
-    const uniqueSuffix = Date.now() + '-' + crypto.randomBytes(8).toString('hex');
-    // Get the file extension from the original file name
-    const extname = path.extname(file.originalname);
-    cb(null, file.fieldname + '-' + uniqueSuffix + extname);
-  }
-});
-
-// Filter to allow only certain file types
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|pdf|doc|docx|xls|xlsx|ppt|pptx/;
-  const mimetype = allowedTypes.test(file.mimetype);
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-
-  if (mimetype && extname) {
-    return cb(null, true);
-  }
-  cb(new Error('Only images (jpeg, jpg, png) and documents (pdf, doc, docx, xls, xlsx, ppt, pptx) are allowed!'));
-};
-
-// Initialize multer upload middleware
-const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: { 
-    fileSize: 1024 * 1024 * 10, // 10MB file size limit
-    files: 1 // Limit to 1 file per request
-  }
-});
+// --- Multer Configuration ---
+// We're using the imported multerConfig, but keeping this for reference
+const uploadSingle = upload.single('file');
+const uploadDocumentFile = upload.single('documentFile');
 
 // Error handling middleware for multer
 const handleMulterError = (err, req, res, next) => {
@@ -78,8 +42,16 @@ const handleMulterError = (err, req, res, next) => {
 router.post(
   '/upload', 
   protect, 
-  upload.single('file'),
-  handleMulterError,
+  (req, res, next) => {
+    console.log('File upload request received');
+    uploadSingle(req, res, (err) => {
+      if (err) {
+        console.error('File upload error:', err);
+        return handleMulterError(err, req, res, next);
+      }
+      next();
+    });
+  },
   documentController.uploadDocument
 );
 
@@ -107,13 +79,18 @@ router.put(
     
     // If this is a multipart/form-data request, use multer to handle the file upload
     if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
-      return upload.single('documentFile')(req, res, next);
+      return uploadDocumentFile(req, res, (err) => {
+        if (err) {
+          console.error('File upload error during update:', err);
+          return handleMulterError(err, req, res, next);
+        }
+        next();
+      });
     }
     
     // Otherwise, proceed to the controller
     next();
   },
-  handleMulterError,
   documentController.updateDocument
 );
 

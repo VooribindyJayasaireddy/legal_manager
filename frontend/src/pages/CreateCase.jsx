@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 
 const CreateCase = () => {
   const navigate = useNavigate();
@@ -14,71 +13,11 @@ const CreateCase = () => {
     description: '',
     court: '',
     jurisdiction: '',
-    clientIds: [],
     notes: '',
     externalId: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
-  
-  // State for client search and selection
-  const [availableClients, setAvailableClients] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedClients, setSelectedClients] = useState([]);
-  const [isLoadingClients, setIsLoadingClients] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  
-  // Fetch clients from API
-  useEffect(() => {
-    const fetchClients = async () => {
-      try {
-        setIsLoadingClients(true);
-        const response = await axios.get('/api/clients', {
-          params: { search: searchQuery },
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        setAvailableClients(response.data);
-      } catch (error) {
-        console.error('Error fetching clients:', error);
-      } finally {
-        setIsLoadingClients(false);
-      }
-    };
-    
-    const timer = setTimeout(() => {
-      if (searchQuery.trim() !== '') {
-        fetchClients();
-      } else {
-        setAvailableClients([]);
-      }
-    }, 300);
-    
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-  
-  // Handle client selection
-  const handleClientSelect = (client) => {
-    if (!selectedClients.some(c => c._id === client._id)) {
-      setSelectedClients([...selectedClients, client]);
-      setFormData(prev => ({
-        ...prev,
-        clientIds: [...prev.clientIds, client._id]
-      }));
-      setSearchQuery('');
-      setIsDropdownOpen(false);
-    }
-  };
-  
-  // Remove selected client
-  const removeClient = (clientId) => {
-    setSelectedClients(selectedClients.filter(c => c._id !== clientId));
-    setFormData(prev => ({
-      ...prev,
-      clientIds: prev.clientIds.filter(id => id !== clientId)
-    }));
-  };
 
   const handleChange = (field, value) => {
     setFormData(prev => ({
@@ -104,22 +43,20 @@ const CreateCase = () => {
 
     setIsSubmitting(true);
     try {
-      // Prepare the data to send
-      const caseData = {
-        ...formData,
-        clients: selectedClients.map(client => client._id)
-      };
+      console.log('Sending case data:', formData);
       
-      console.log('Sending case data:', caseData);
-      
-      const response = await fetch('/api/cases', {
+      const response = await fetch('http://localhost:5000/api/cases', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Accept': 'application/json'
         },
-        body: JSON.stringify(caseData)
+        credentials: 'include',
+        body: JSON.stringify(formData)
       });
+      
+      console.log('Response status:', response.status);
 
       // Check if response is JSON
       const contentType = response.headers.get('content-type');
@@ -333,105 +270,8 @@ const CreateCase = () => {
                 />
               </div>
             </div>
-            
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Clients
-              </label>
-              <div className="space-y-2">
-                {/* Selected clients */}
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {selectedClients.map(client => (
-                    <span key={client._id} className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm">
-                      {client.name}
-                      <button
-                        type="button"
-                        onClick={() => removeClient(client._id)}
-                        className="ml-1.5 inline-flex items-center justify-center h-4 w-4 rounded-full text-blue-400 hover:bg-blue-200 hover:text-blue-500 focus:outline-none"
-                      >
-                        <span className="sr-only">Remove client</span>
-                        <svg className="h-2 w-2" stroke="currentColor" fill="none" viewBox="0 0 8 8">
-                          <path strokeLinecap="round" strokeWidth="1.5" d="M1 1l6 6m0-6L1 7" />
-                        </svg>
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                
-                {/* Client search input */}
-                <div className="relative">
-                  <div>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Search clients..."
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        if (e.target.value.trim() !== '') {
-                          setIsDropdownOpen(true);
-                        } else {
-                          setIsDropdownOpen(false);
-                        }
-                      }}
-                      onFocus={() => searchQuery.trim() !== '' && setIsDropdownOpen(true)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          return false;
-                        }
-                      }}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          return false;
-                        }
-                      }}
-                    />
-                  </div>
-                  
-                  {/* Loading indicator */}
-                  {isLoadingClients && (
-                    <div className="absolute right-3 top-2.5">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                    </div>
-                  )}
-                  
-                  {/* Dropdown menu */}
-                  {isDropdownOpen && availableClients.length > 0 && (
-                    <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
-                      {availableClients.filter(client => 
-                        !selectedClients.some(selected => selected._id === client._id)
-                      ).map(client => (
-                        <div
-                          key={client._id}
-                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                          onClick={() => handleClientSelect(client)}
-                        >
-                          <div className="font-medium text-gray-900">{client.name}</div>
-                          <div className="text-sm text-gray-500">{client.email}</div>
-                        </div>
-                      ))}
-                      {availableClients.filter(client => 
-                        !selectedClients.some(selected => selected._id === client._id)
-                      ).length === 0 && (
-                        <div className="px-4 py-2 text-sm text-gray-500">No more clients found</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Helper text */}
-                <p className="text-xs text-gray-500">
-                  Search and select clients to associate with this case
-                </p>
-              </div>
-            </div>
           </div>
         </div>
-
 
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-6 pb-2 border-b">Additional Information</h2>
@@ -489,7 +329,7 @@ const CreateCase = () => {
           </button>
           <button
             type="submit"
-            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
             disabled={isSubmitting}
           >
             {isSubmitting ? 'Creating...' : 'Create Case'}
