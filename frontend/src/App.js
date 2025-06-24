@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Pages
 import Login from './pages/Login';
@@ -10,6 +12,20 @@ import Cases from './pages/Cases';
 import CreateCase from './pages/CreateCase';
 import CaseDetails from './pages/CaseDetails';
 import EditCase from './pages/EditCase';
+import Documents from './pages/Documents.jsx';
+import Calendar from './pages/Calendar';
+import Tasks from './pages/Tasks';
+import NewTask from './pages/NewTask';
+import TaskDetails from './pages/TaskDetails';
+import EditTask from './pages/EditTask';
+import AppointmentsList from './pages/Appointmentlist';
+import AppointmentDetails from './pages/appointmentdetails';
+import AppointmentForm from './pages/AppointmentForm';
+
+import Clients from './pages/Clients';
+import AddClient from './pages/AddClient';
+import ClientDetails from './pages/ClientDetails';
+import EditClient from './pages/EditClient';
 
 // Components
 import GavelLoading from './components/GavelLoading';
@@ -41,46 +57,63 @@ export const AuthProvider = ({ children }) => {
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const logoutRef = useRef(() => {});
   
-  // Check for existing token and validate it
+  // Check for existing token and validate it on component mount
   useEffect(() => {
     const validateToken = async () => {
       const token = localStorage.getItem('token');
       
       if (!token) {
+        console.log('No token found in localStorage');
         setIsLoading(false);
         return;
       }
       
       try {
-        // Here you would typically validate the token with your backend
-        // For now, we'll just check if it exists and is a valid JWT format
-        const tokenParts = token.split('.');
-        if (tokenParts.length !== 3) {
-          throw new Error('Invalid token format');
-        }
-        
+        console.log('Validating token...');
         // Set axios default auth header
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         
-        // Fetch user profile data after successful token validation
         try {
-          const userResponse = await axios.get('http://localhost:5000/api/auth/me');
-          if (userResponse.data.success) {
-            console.log('Setting user data:', userResponse.data.user); // Debug log
-            setUser(userResponse.data.user);
+          // Verify the token with the backend
+          const verifyResponse = await axios.post('http://localhost:5000/api/auth/verify-token', { token });
+          
+          if (verifyResponse.data && verifyResponse.data.success && verifyResponse.data.user) {
+            // Token is valid, set user data
+            console.log('Token valid, user data:', verifyResponse.data.user);
+            setUser(verifyResponse.data.user);
+            setIsAuthenticated(true);
+            setIsLoading(false);
+            return;
           } else {
-            console.error('Failed to fetch user profile:', userResponse.data.message);
+            console.log('Token validation failed or user data missing');
+            throw new Error('Invalid token or user data');
           }
-        } catch (error) {
-          console.error('Error fetching user profile:', error);
-          // Don't log out on profile fetch error, just continue with limited functionality
+        } catch (verifyError) {
+          console.error('Error during token validation:', verifyError);
+          // If verify-token fails, try to get user data directly
+          try {
+            const userResponse = await axios.get('http://localhost:5000/api/auth/me');
+            if (userResponse.data && userResponse.data.user) {
+              console.log('Fetched user data directly:', userResponse.data.user);
+              setUser(userResponse.data.user);
+              setIsAuthenticated(true);
+              setIsLoading(false);
+              return;
+            }
+          } catch (meError) {
+            console.error('Error fetching user data:', meError);
+          }
+          
+          // If we get here, both methods failed
+          throw new Error('Could not validate token or fetch user data');
         }
-        
-        setIsAuthenticated(true);
       } catch (error) {
-        console.error('Token validation failed:', error);
+        console.error('Authentication error:', error);
+        // Clear invalid token
         localStorage.removeItem('token');
         delete axios.defaults.headers.common['Authorization'];
+        setUser(null);
+        setIsAuthenticated(false);
       } finally {
         setIsLoading(false);
       }
@@ -134,71 +167,68 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  const login = useCallback(async ({ token, userData }) => {
-    console.log('Login called with:', { token, userData });
-    
+  const login = useCallback((userData, token) => {
     if (!token) {
-      console.error('No token provided to login function');
-      return;
+      console.error('No token provided for login');
+      throw new Error('No authentication token provided');
     }
     
     try {
-      // Store token and update auth state
+      // Store token and set auth header
       localStorage.setItem('token', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       
-      // If user data is provided, use it
-      if (userData) {
-        console.log('Setting user data from login response:', userData);
-        const user = {
-          id: userData._id || userData.id,
-          username: userData.username,
-          email: userData.email,
-          firstName: userData.firstName || userData.first_name,
-          lastName: userData.lastName || userData.last_name,
-          role: userData.role,
-          // Include all other user data
-          ...userData
-        };
-        console.log('Setting user in state:', user);
-        setUser(user);
-      } else {
-        // If no user data, fetch it from the server
-        const fetchUser = async () => {
-          try {
-            const response = await axios.get('http://localhost:5000/api/auth/me');
-            if (response.data.success) {
-              console.log('Fetched user data:', response.data.user);
-              setUser(response.data.user);
-            } else {
-              throw new Error('Failed to fetch user profile');
-            }
-          } catch (error) {
-            console.error('Failed to fetch user profile:', error);
-            // If we can't get user data, log the user out using the ref
-            logoutRef.current();
-          }
-        };
-        fetchUser();
-      }
+      // Format user data consistently
+      const user = {
+        id: userData._id || userData.id,
+        username: userData.username,
+        email: userData.email,
+        firstName: userData.firstName || userData.first_name || '',
+        lastName: userData.lastName || userData.last_name || '',
+        role: userData.role || 'user',
+        ...userData
+      };
       
+      console.log('Setting user data in auth context:', user);
+      
+      // Update auth state
+      setUser(user);
       setIsAuthenticated(true);
+      
+      console.log('Login successful, user authenticated:', user.username);
+      return user;
     } catch (error) {
       console.error('Login error:', error);
-      // Re-throw the error so the caller can handle it
+      // Clear any partial state on error
+      localStorage.removeItem('token');
+      delete axios.defaults.headers.common['Authorization'];
+      setUser(null);
+      setIsAuthenticated(false);
       throw error;
     }
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
-    setIsAuthenticated(false);
-    setUser(null);
+  const logout = useCallback(async () => {
+    try {
+      console.log('Logging out user...');
+      
+      // Clear token from storage and headers
+      localStorage.removeItem('token');
+      delete axios.defaults.headers.common['Authorization'];
+      
+      // Reset auth state
+      setUser(null);
+      setIsAuthenticated(false);
+      
+      console.log('User logged out successfully');
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
     
-    // Optionally call backend logout endpoint
-    // axios.post('/api/auth/logout');
+    // Always redirect to login page
+    window.location.href = '/login';
   }, []);
+
   
   // Update the ref whenever logout changes
   useEffect(() => {
@@ -247,6 +277,17 @@ function App() {
     <AuthProvider>
       <Router>
         <div className="min-h-screen bg-gray-50">
+          <ToastContainer 
+            position="top-right"
+            autoClose={5000}
+            hideProgressBar={false}
+            newestOnTop
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+          />
           <Routes>
             {/* Public Routes */}
             <Route element={<PublicRoute />}>
@@ -261,6 +302,21 @@ function App() {
               <Route path="/cases/new" element={<CreateCase />} />
               <Route path="/cases/:id" element={<CaseDetails />} />
               <Route path="/cases/:id/edit" element={<EditCase />} />
+              <Route path="/documents" element={<Documents />} />
+              <Route path="/calendar" element={<Calendar />} />
+              <Route path="/tasks" element={<Tasks />} />
+              <Route path="/tasks/new" element={<NewTask />} />
+              <Route path="/tasks/:id" element={<TaskDetails />} />
+              <Route path="/tasks/edit/:id" element={<EditTask />} />
+              <Route path="/appointments" element={<AppointmentsList />} />
+              <Route path="/appointments/new" element={<AppointmentForm />} />
+              <Route path="/appointments/:id" element={<AppointmentDetails />} />
+              <Route path="/appointments/:id/edit" element={<AppointmentForm />} />
+
+              <Route path="/clients" element={<Clients />} />
+              <Route path="/clients/new" element={<AddClient />} />
+              <Route path="/clients/:id" element={<ClientDetails />} />
+              <Route path="/clients/:id/edit" element={<EditClient />} />
             </Route>
 
             {/* Default Redirect */}

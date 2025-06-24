@@ -4,9 +4,29 @@ import { useNavigate } from 'react-router-dom';
 import { FaEnvelope, FaLock, FaUser, FaPhone, FaGavel, FaTimes } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Error Modal Component
-const ErrorModal = ({ message, onClose }) => {
+// Message Modal Component
+const MessageModal = ({ message, onClose, type = 'error' }) => {
   if (!message) return null;
+
+  const isSuccess = type === 'success';
+  const iconBgColor = isSuccess ? 'bg-green-100' : 'bg-red-100';
+  const iconColor = isSuccess ? 'text-green-600' : 'text-red-600';
+  const title = isSuccess ? 'Success' : 'Error';
+  const iconPath = isSuccess ? (
+    <path 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      strokeWidth={2} 
+      d="M5 13l4 4L19 7" 
+    />
+  ) : (
+    <path 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      strokeWidth={2} 
+      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
+    />
+  );
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -19,22 +39,17 @@ const ErrorModal = ({ message, onClose }) => {
           <FaTimes className="h-5 w-5" />
         </button>
         <div className="text-center">
-          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+          <div className={`mx-auto flex items-center justify-center h-12 w-12 rounded-full ${iconBgColor}`}>
             <svg 
-              className="h-6 w-6 text-red-600" 
+              className={`h-6 w-6 ${iconColor}`}
               fill="none" 
               viewBox="0 0 24 24" 
               stroke="currentColor"
             >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
-              />
+              {iconPath}
             </svg>
           </div>
-          <h3 className="mt-3 text-lg font-medium text-gray-900">Error</h3>
+          <h3 className="mt-3 text-lg font-medium text-gray-900">{title}</h3>
           <div className="mt-2">
             <p className="text-sm text-gray-500">{message}</p>
           </div>
@@ -42,7 +57,7 @@ const ErrorModal = ({ message, onClose }) => {
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:text-sm"
+              className="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-black text-base font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 sm:text-sm"
             >
               OK
             </button>
@@ -55,7 +70,8 @@ const ErrorModal = ({ message, onClose }) => {
 
 const Login = () => {
   const [error, setError] = useState('');
-  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [showMessage, setShowMessage] = useState(false);
+  const [messageType, setMessageType] = useState('error'); // 'error' or 'success'
   const [isMounted, setIsMounted] = useState(false);
   const [showGavel, setShowGavel] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -223,21 +239,29 @@ const Login = () => {
         }
       }
 
-      // Registration successful
-      setActiveTab('login');
-      setError('');
-      setResetStatus('Registration successful! You can now log in with your credentials.');
-      
-      // Reset form
-      setFormData({
-        username: '',
-        email: '',
-        password: '',
-        firstName: '',
-        lastName: '',
-        phoneNumber: '',
-        agreeTerms: false
-      });
+      // Check if registration was successful
+      if (responseData.success) {
+        // Registration successful
+        setActiveTab('login');
+        // Show success message and switch to login tab
+        displayMessage('Registration successful! You can now log in with your credentials.', 'success');
+        setActiveTab('login');
+        
+        // Clear form
+        setFormData({
+          username: '',
+          email: '',
+          password: '',
+          firstName: '',
+          lastName: '',
+          phoneNumber: '',
+          agreeTerms: false
+        });
+        return;
+      } else {
+        // If success is false but no error was thrown
+        throw new Error(responseData.message || 'Registration failed. Please try again.');
+      }
       
     } catch (err) {
       console.error('Registration error:', err);
@@ -251,7 +275,7 @@ const Login = () => {
         errorMessage = 'Network error. Please check your connection and try again.';
       }
       
-      showError(errorMessage);
+      displayMessage(errorMessage, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -311,23 +335,26 @@ const Login = () => {
 
       // If we get here, login was successful
       if (data.data && data.data.token) {
-        // Debug: Log the exact user data we're trying to pass
-        const userData = {
+        const { token, user } = data.data;
+        
+        if (!token) {
+          throw new Error('No authentication token received in response');
+        }
+        
+        // Extract user data with fallbacks for different response formats
+        const userData = user || {
           _id: data.data._id,
           username: data.data.username,
           email: data.data.email,
-          firstName: data.data.firstName,
-          lastName: data.data.lastName,
+          firstName: data.data.firstName || data.data.first_name,
+          lastName: data.data.lastName || data.data.last_name,
           role: data.data.role
         };
         
-        console.log('Attempting to login with user data:', userData);
+        console.log('Logging in with user data:', userData);
         
-        // Call the login function from AuthContext with the token and user data
-        login({
-          token: data.data.token,
-          userData: userData
-        });
+        // Call the login function from AuthContext with the user data and token
+        login(userData, token);
         
         // Navigate to dashboard
         navigate('/dashboard');
@@ -347,20 +374,21 @@ const Login = () => {
         errorMessage = err.message; // Use the specific error message
       }
       
-      setError(errorMessage);
+      displayMessage(errorMessage, 'error');
       throw err; // Re-throw to be caught by handleSubmit
     } finally {
       setIsLoading(false);
     }
   };
 
-  const showError = (message) => {
+  const displayMessage = (message, type = 'error') => {
     setError(message);
-    setShowErrorModal(true);
+    setMessageType(type);
+    setShowMessage(true);
   };
 
-  const closeErrorModal = () => {
-    setShowErrorModal(false);
+  const closeMessage = () => {
+    setShowMessage(false);
     setError('');
   };
 
@@ -369,7 +397,7 @@ const Login = () => {
     
     // Basic email validation
     if (!email || !validateEmail(email)) {
-      showError('Please enter a valid email address');
+      displayMessage('Please enter a valid email address', 'error');
       return;
     }
     
@@ -431,7 +459,7 @@ const Login = () => {
         errorMessage = 'Unable to connect to the server. Please check your internet connection.';
       }
       
-      showError(errorMessage);
+      displayMessage(errorMessage, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -521,25 +549,8 @@ const Login = () => {
         const { token, user } = responseData.data;
         
         if (token) {
-          // Store the token in localStorage
-          localStorage.setItem('token', token);
-          
-          // Update auth context
-          login({
-            id: user._id,
-            username: user.username,
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            role: user.role
-          });
-          
-          // Redirect to dashboard
-          navigate('/dashboard');
-        } else {
-          // If no token, show success message and switch to login
-          setActiveTab('login');
-          showError('Registration successful! Please log in with your credentials.');
+          // Call login with user data and token
+          login(user, token);
           
           // Clear form
           setFormData({
@@ -548,7 +559,26 @@ const Login = () => {
             password: '',
             firstName: '',
             lastName: '',
-            phoneNumber: ''
+            phoneNumber: '',
+            agreeTerms: false
+          });
+          
+          // Redirect to dashboard
+          navigate('/dashboard');
+        } else {
+          // If no token, show success message and switch to login
+          setActiveTab('login');
+          displayMessage('Registration successful! Please log in with your credentials.', 'success');
+          
+          // Clear form
+          setFormData({
+            username: '',
+            email: '',
+            password: '',
+            firstName: '',
+            lastName: '',
+            phoneNumber: '',
+            agreeTerms: false
           });
         }
       }
@@ -562,6 +592,13 @@ const Login = () => {
 
   return (
     <div className="flex flex-1 overflow-hidden">
+      {/* Message Modal */}
+      <MessageModal 
+        message={error} 
+        onClose={closeMessage} 
+        type={messageType} 
+      />
+      
       {/* Left Panel with Image */}
       <div className="hidden md:block w-1/2 relative">
         <img
@@ -925,7 +962,7 @@ const Login = () => {
                     id="terms"
                     name="terms"
                     type="checkbox"
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-black focus:ring-gray-500 border-gray-300 rounded"
                     required
                   />
                 </div>

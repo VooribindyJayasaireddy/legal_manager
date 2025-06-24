@@ -17,6 +17,9 @@ router.post('/forgotpassword', authController.forgotPassword);
 // PUT /api/auth/resetpassword/:resettoken - Reset password with token
 router.put('/resetpassword/:resettoken', authController.resetPassword);
 
+// POST /api/auth/verify-token - Verify JWT token
+router.post('/verify-token', authController.verifyToken);
+
 // GET /api/auth/profile - Get authenticated user's profile (protected route example)
 router.get('/profile', protect, authController.getUserProfile);
 

@@ -218,24 +218,94 @@ exports.resetPassword = async (req, res) => {
       token,
       user: { _id: user._id, username: user.username, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role }
     });
+    
+    user.password = req.body.password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+
+    const authToken = generateToken(user._id);
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successful',
+      token: authToken,
+      user: { 
+        _id: user._id, 
+        username: user.username, 
+        email: user.email, 
+        firstName: user.firstName, 
+        lastName: user.lastName, 
+        role: user.role 
+      }
+    });
   } catch (error) {
     console.error('Reset Password error:', error);
-    res.status(500).json({ message: 'Server error during password reset' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error during password reset' 
+    });
+  }
+};
+
+// @desc Verify JWT token
+// @route POST /api/auth/verify-token
+// @access Public
+exports.verifyToken = async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ success: false, message: 'Token is required' });
+    }
+    
+    // Verify token
+    jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
+      if (err) {
+        console.error('Token verification failed:', err);
+        return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+      }
+      
+      try {
+        // Check if user still exists
+        const user = await User.findById(decoded.id).select('-password');
+        if (!user) {
+          return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        
+        // Return success with user data
+        res.status(200).json({
+          success: true,
+          valid: true,
+          user: {
+            id: user._id,
+            username: user.username,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role
+          }
+        });
+      } catch (error) {
+        console.error('Error fetching user during token verification:', error);
+        res.status(500).json({ success: false, message: 'Error verifying token' });
+      }
+    });
+  } catch (error) {
+    console.error('Token verification error:', error);
+    res.status(500).json({ success: false, message: 'Server error during token verification' });
   }
 };
 
 // @desc Get User Profile (protected route)
 exports.getUserProfile = async (req, res) => {
-  if (!req.user) {
-    return res.status(404).json({ message: 'User not found' });
+try {
+  const user = await User.findById(req.user.id).select('-password');
+  if (!user) {
+    return res.status(404).json({ success: false, message: 'User not found' });
   }
-  res.status(200).json({
-    _id: req.user._id,
-    username: req.user.username,
-    email: req.user.email,
-    firstName: req.user.firstName,
-    lastName: req.user.lastName,
-    createdAt: req.user.createdAt,
-    updatedAt: req.user.updatedAt,
-  });
+  res.status(200).json({ success: true, user });
+} catch (error) {
+  console.error('Get profile error:', error);
+  res.status(500).json({ success: false, message: 'Server error' });
+}
 };

@@ -17,17 +17,30 @@ if (!existsSync(uploadDir)) {
 // @access  Private (requires authentication)
 exports.uploadDocument = async (req, res) => {
   try {
+    console.log('Upload request received. Files:', req.files, 'Body:', req.body);
+    
     // Check if a file was uploaded by multer middleware
     if (!req.file) {
+      console.error('No file uploaded');
       return res.status(400).json({ message: 'No file uploaded.' });
     }
 
+    console.log('Uploaded file details:', {
+      originalname: req.file.originalname,
+      filename: req.file.filename,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      path: req.file.path
+    });
+
     // Ensure user is authenticated
     if (!req.user || !req.user._id) {
+      console.error('User not authenticated');
       // Clean up the uploaded file if user is not authenticated
       if (req.file.path) {
         try {
           await fs.unlink(req.file.path);
+          console.log('Cleaned up file after auth failure');
         } catch (err) {
           console.error('Error cleaning up file after auth failure:', err);
         }
@@ -36,25 +49,40 @@ exports.uploadDocument = async (req, res) => {
     }
 
     // Extract necessary data from the request
-    const { originalname, filename, mimetype, size } = req.file;
+    const { originalname, filename, mimetype, size, path: filePath } = req.file;
     const { caseId, clientId, description, tags, title, documentType = 'standalone' } = req.body;
+    
+    console.log('Processing document upload:', {
+      title,
+      documentType,
+      caseId,
+      clientId,
+      originalname,
+      filename,
+      mimetype,
+      size
+    });
     
     // Validate document type
     if (!['case', 'standalone'].includes(documentType)) {
+      console.error('Invalid document type:', documentType);
       return res.status(400).json({ message: 'Invalid document type. Must be either "case" or "standalone"' });
     }
     
     // If document type is 'case', caseId is required
     if (documentType === 'case' && !caseId) {
+      console.error('Case ID is required for case documents');
       return res.status(400).json({ message: 'caseId is required for case documents' });
     }
     
     // Title is required
     if (!title || typeof title !== 'string' || title.trim() === '') {
+      console.error('Document title is required');
       // Clean up the uploaded file if validation fails
-      if (req.file && req.file.path) {
+      if (req.file?.path) {
         try {
-          await fs.unlink(req.file.path);
+          await fs.promises.unlink(req.file.path);
+          console.log('Cleaned up file after validation failure');
         } catch (err) {
           console.error('Error cleaning up file after validation failure:', err);
         }
@@ -64,24 +92,34 @@ exports.uploadDocument = async (req, res) => {
     
     const documentTitle = title.trim();
 
-    // Ensure at least one association (case or client) is provided, if needed.
-    // Adjust this logic based on your exact business rules for document association.
-    if (!caseId && !clientId) {
-      // If a document must be linked to either a case or a client, uncomment this.
-      // return res.status(400).json({ message: 'Document must be associated with a case or a client.' });
+    // Ensure the uploads directory exists
+    const uploadsDir = path.join(__dirname, '../../uploads/documents');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+      console.log('Created uploads directory:', uploadsDir);
     }
+
+    // Create a relative path for storage in the database
+    const relativePath = path.relative(path.join(__dirname, '../../'), filePath);
+    
+    console.log('File paths:', {
+      originalPath: filePath,
+      relativePath,
+      uploadsDir,
+      fileExists: fs.existsSync(filePath)
+    });
 
     // Create a new document instance
     const newDocument = new Document({
-      title: documentTitle, // Use provided title or fallback to filename without extension
-      user: req.user._id, // Assuming req.user is populated by your authentication middleware
+      title: documentTitle,
+      user: req.user._id,
       documentType,
       case: documentType === 'case' ? caseId : null,
       client: clientId || null,
       originalName: originalname,
-      fileName: filename, // Multer provides a unique filename
+      fileName: filename,
       fileType: mimetype,
-      filePath: req.file.path,
+      filePath: relativePath, // Store relative path
       fileSize: size,
       description: description || '',
       tags: tags ? (Array.isArray(tags) ? tags : tags.split(',').map(tag => tag.trim())) : [],
@@ -207,33 +245,72 @@ exports.getDocumentById = async (req, res) => {
 // @access  Private
 exports.downloadDocument = async (req, res) => {
   try {
+    console.log('Download request for document ID:', req.params.id);
+    
     const document = await Document.findOne({ _id: req.params.id, user: req.user._id });
 
     if (!document) {
+      console.log('Document not found in database');
       return res.status(404).json({ message: 'Document not found.' });
     }
 
-    const filePath = path.join(__dirname, '../../', document.filePath);
+    console.log('Document found:', {
+      id: document._id,
+      fileName: document.fileName,
+      filePath: document.filePath,
+      originalName: document.originalName
+    });
+
+    // Normalize the file path to handle any path traversal issues
+    const normalizedPath = path.normalize(document.filePath);
+    // Resolve the path to ensure it's absolute and doesn't contain any '..' that could escape the uploads directory
+    const resolvedPath = path.resolve(__dirname, '../../', normalizedPath);
+    
+    console.log('Resolved file path:', resolvedPath);
 
     // Check if the file exists on the disk
-    if (fs.existsSync(filePath)) {
+    if (fs.existsSync(resolvedPath)) {
+      console.log('File exists, preparing download...');
+      
       // Set the Content-Disposition header to prompt download
       res.setHeader('Content-Disposition', `attachment; filename="${document.originalName}"`);
       // Set the Content-Type header to the document's MIME type
       res.setHeader('Content-Type', document.fileType);
+      
       // Stream the file to the client
-      res.download(filePath, document.originalName, (err) => {
-        if (err) {
-          console.error('Error sending file:', err);
-          res.status(500).json({ message: 'Could not download the file.' });
+      const fileStream = fs.createReadStream(resolvedPath);
+      fileStream.pipe(res);
+      
+      fileStream.on('error', (error) => {
+        console.error('Error streaming file:', error);
+        if (!res.headersSent) {
+          res.status(500).json({ message: 'Error streaming file' });
         }
       });
+      
     } else {
-      res.status(404).json({ message: 'File not found on server storage.' });
+      console.error('File not found at path:', resolvedPath);
+      res.status(404).json({ 
+        message: 'File not found on server storage.',
+        details: {
+          resolvedPath,
+          fileExists: fs.existsSync(resolvedPath),
+          directory: path.dirname(resolvedPath),
+          directoryExists: fs.existsSync(path.dirname(resolvedPath))
+        }
+      });
     }
   } catch (error) {
-    console.error('Error downloading document:', error);
-    res.status(500).json({ message: 'Server error while downloading document.' });
+    console.error('Error downloading document:', {
+      error: error.message,
+      stack: error.stack,
+      params: req.params,
+      user: req.user?._id
+    });
+    res.status(500).json({ 
+      message: 'Server error while downloading document.',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
