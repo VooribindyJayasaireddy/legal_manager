@@ -28,12 +28,13 @@ const CasesPage = () => {
   };
 
   // Show notification
-  const showNotification = (type, message) => {
+  const showNotification = useCallback((type, message) => {
     setNotification({ type, message, show: true });
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setNotification(prev => ({ ...prev, show: false }));
     }, 3000);
-  };
+    return () => clearTimeout(timer);
+  }, []);
 
   // Fetch cases from API
   const fetchCases = async () => {

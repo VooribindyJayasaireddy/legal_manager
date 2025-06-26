@@ -1,23 +1,16 @@
-// Import necessary libraries
-import React, { useEffect, useState, useContext, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useContext, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../App';
 import GavelLoading from './GavelLoading';
-
 import { 
   Home, 
   FileText, 
   Calendar, 
   Users, 
-  Settings, 
   Bell, 
-  Search, 
   UserCircle, 
   LogOut, 
-  ClipboardList, 
-  MessageSquareText, 
-  Bot, 
-  FileEdit
+  ClipboardList
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -33,11 +26,10 @@ const api = axios.create({
 const Sidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { logout } = useContext(AuthContext);
-  const pathname = window.location.pathname;
-  const isActive = (path) => pathname === path;
+  const location = useLocation();
+  const pathname = location.pathname;
+  const isActive = useCallback((path) => pathname === path, [pathname]);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  
-  const [ripple, setRipple] = useState(null);
 
   const handleLogout = async (e) => {
     try {
@@ -518,9 +510,10 @@ const Header = ({ user }) => {
 
 // Main Layout Component
 const Layout = ({ children }) => {
-  const { user, isLoading: isAuthLoading } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const location = useLocation();
 
   useEffect(() => {
     // Simulate loading user data
@@ -534,7 +527,7 @@ const Layout = ({ children }) => {
   // Close sidebar when route changes
   useEffect(() => {
     setIsSidebarOpen(false);
-  }, [window.location.pathname]);
+  }, [location.pathname]);
 
   if (isLoading) {
     return (

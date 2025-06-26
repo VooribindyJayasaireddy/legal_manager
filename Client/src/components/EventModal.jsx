@@ -74,7 +74,7 @@ const EventModal = ({ event, onClose, onSave, onDelete }) => {
     setShowReminder(!showReminder);
   };
 
-  const updateReminder = () => {
+  const updateReminder = useCallback(() => {
     let reminderDate = new Date(formData.start);
     let minutes = 0;
 
@@ -98,13 +98,13 @@ const EventModal = ({ event, onClose, onSave, onDelete }) => {
       ...prev,
       reminder: reminderDate
     }));
-  };
+  }, [formData.start, reminderTime, reminderUnit]);
 
   useEffect(() => {
     if (showReminder) {
       updateReminder();
     }
-  }, [reminderTime, reminderUnit, formData.start]);
+  }, [reminderTime, reminderUnit, formData.start, showReminder, updateReminder]);
 
   const handleSubmit = (e) => {
     e.preventDefault();

@@ -69,15 +69,18 @@ const AIChat = () => {
     return lastActive || (chats[0]?.id || null);
   });
   
-  // Get active chat messages
-  const messages = chats.find(chat => chat.id === activeChatId)?.messages || [];
+  // Get active chat messages using useMemo to prevent unnecessary recalculations
+  const messages = useMemo(() => 
+    chats.find(chat => chat.id === activeChatId)?.messages || [], 
+    [chats, activeChatId]
+  );
   
   // Update active chat when chats change
   useEffect(() => {
     if (chats.length > 0 && !activeChatId) {
       setActiveChatId(chats[0].id);
     }
-  }, [chats, activeChatId]);
+  }, [chats, activeChatId, setActiveChatId]);
   
   // Save chats to localStorage whenever they change
   useEffect(() => {
