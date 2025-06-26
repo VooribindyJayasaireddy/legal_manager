@@ -19,11 +19,11 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        working-directory: ./frontend  # adjust if your React app is in a different folder
+        working-directory: ./Client  # adjust if your React app is in a different folder
         run: npm install
 
       - name: Build React App
-        working-directory: ./frontend
+        working-directory: ./Client
         run: npm run build
 
       - name: Deploy to S3
