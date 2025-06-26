@@ -108,7 +108,7 @@ const TasksPage = () => {
   // Mock stats will be calculated from mockTasks, so we don't need this constant anymore
 
   // Fetch tasks from API with fallback to mock data
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -154,7 +154,7 @@ const TasksPage = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [mockTasks, showNotification]);
 
   // Fetch tasks on component mount
   useEffect(() => {

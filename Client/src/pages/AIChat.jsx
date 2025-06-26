@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Send, Loader2, FileText, Bot as BotIcon, Plus, MessageSquare, Trash2, Edit3 } from 'lucide-react';
 import MessageBubble from './MessageBubble';
