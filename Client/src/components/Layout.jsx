@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext, useCallback } from 'react';
+import React, { useEffect, useState, useContext, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../App';
 import GavelLoading from './GavelLoading';
@@ -10,7 +10,8 @@ import {
   Bell, 
   UserCircle, 
   LogOut, 
-  ClipboardList
+  ClipboardList,
+  Bot
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -30,6 +31,8 @@ const Sidebar = ({ isOpen, onClose }) => {
   const pathname = location.pathname;
   const isActive = useCallback((path) => pathname === path, [pathname]);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [ripple, setRipple] = useState(null);
+  const buttonRef = useRef(null);
 
   const handleLogout = async (e) => {
     try {
