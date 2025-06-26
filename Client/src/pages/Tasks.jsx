@@ -34,12 +34,13 @@ const TasksPage = () => {
   };
 
   // Show notification
-  const showNotification = (type, message) => {
+  const showNotification = useCallback((type, message) => {
     setNotification({ type, message, show: true });
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setNotification(prev => ({ ...prev, show: false }));
     }, 3000);
-  };
+    return () => clearTimeout(timer);
+  }, []);
 
   // Handle task deletion
   const handleDeleteTask = async () => {
@@ -153,12 +154,12 @@ const TasksPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Initial data fetch
+  // Fetch tasks on component mount
   useEffect(() => {
     fetchTasks();
-  }, []);
+  }, [fetchTasks]);
 
   // Filter tasks based on search and status filter
   const filteredTasks = tasks.filter(task => {
