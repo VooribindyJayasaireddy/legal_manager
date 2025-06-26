@@ -20,6 +20,8 @@ const TasksPage = () => {
     pending: "bg-amber-50 text-amber-800 border border-amber-200",
     in_progress: "bg-blue-50 text-blue-800 border border-blue-200",
     completed: "bg-emerald-50 text-emerald-800 border border-emerald-200",
+    on_hold: "bg-purple-50 text-purple-800 border border-purple-200",
+    cancelled: "bg-gray-100 text-gray-800 border border-gray-300",
     overdue: "bg-rose-50 text-rose-800 border border-rose-200"
   };
 
@@ -71,8 +73,10 @@ const TasksPage = () => {
       status: 'pending',
       dueDate: new Date(Date.now() + 86400000 * 2).toISOString(),
       priority: 'high',
-      assignedTo: { firstName: 'John', lastName: 'Doe' },
-      case: { caseName: 'Smith vs. Corporation', caseNumber: 'CIV-2023-001' }
+      assignedTo: { firstName: 'John', lastName: 'Doe', username: 'johndoe' },
+      case: { caseName: 'Smith vs. Corporation', caseNumber: 'CIV-2023-001' },
+      client: { firstName: 'Michael', lastName: 'Smith' },
+      user: 'user123'
     },
     {
       _id: '2',
@@ -81,8 +85,10 @@ const TasksPage = () => {
       status: 'in_progress',
       dueDate: new Date(Date.now() - 86400000).toISOString(),
       priority: 'urgent',
-      assignedTo: { firstName: 'Jane', lastName: 'Smith' },
-      case: { caseName: 'Johnson Estate', caseNumber: 'PROB-2023-045' }
+      assignedTo: { firstName: 'Jane', lastName: 'Smith', username: 'janesmith' },
+      case: { caseName: 'Johnson Estate', caseNumber: 'PROB-2023-045' },
+      client: { firstName: 'Sarah', lastName: 'Johnson' },
+      user: 'user123'
     },
     {
       _id: '3',
@@ -91,8 +97,10 @@ const TasksPage = () => {
       status: 'completed',
       dueDate: new Date(Date.now() - 86400000 * 3).toISOString(),
       priority: 'medium',
-      assignedTo: { firstName: 'Robert', lastName: 'Johnson' },
-      case: { caseName: 'Doe Divorce', caseNumber: 'FAM-2023-112' }
+      assignedTo: { firstName: 'Robert', lastName: 'Johnson', username: 'rjohnson' },
+      case: { caseName: 'Doe Divorce', caseNumber: 'FAM-2023-112' },
+      client: { firstName: 'John', lastName: 'Doe' },
+      user: 'user123'
     }
   ];
 
@@ -105,12 +113,24 @@ const TasksPage = () => {
       setError(null);
       
       // Fetch tasks from API with fallback to mock data
-      const tasksResponse = await api.get('/tasks').catch(() => ({ data: mockTasks }));
+      const tasksResponse = await api.get('/tasks').catch((err) => {
+        console.error('Error fetching tasks:', err);
+        return { data: mockTasks };
+      });
       
       // Use API data if available, otherwise use mock data
       const tasksData = Array.isArray(tasksResponse?.data) ? tasksResponse.data : mockTasks;
       
-      setTasks(tasksData);
+      // Transform task data to match expected format
+      const formattedTasks = tasksData.map(task => ({
+        ...task,
+        // Ensure all required fields exist
+        assignedTo: task.assignedTo || { firstName: 'Unassigned', lastName: '' },
+        case: task.case || { caseName: 'No Case', caseNumber: '' },
+        client: task.client || { firstName: 'No', lastName: 'Client' }
+      }));
+      
+      setTasks(formattedTasks);
       
       // If we're using mock data, show a warning
       if (!tasksResponse?.data) {
@@ -142,12 +162,21 @@ const TasksPage = () => {
 
   // Filter tasks based on search and status filter
   const filteredTasks = tasks.filter(task => {
-    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = 
+      task.title?.toLowerCase().includes(searchLower) ||
+      task.description?.toLowerCase().includes(searchLower) ||
+      `${task.assignedTo?.firstName || ''} ${task.assignedTo?.lastName || ''}`.toLowerCase().includes(searchLower) ||
+      task.case?.caseName?.toLowerCase().includes(searchLower) ||
+      task.case?.caseNumber?.toLowerCase().includes(searchLower);
+    
+    const isOverdue = new Date(task.dueDate) < new Date() && 
+                     task.status !== 'completed' && 
+                     task.status !== 'cancelled';
     
     const matchesStatus = filterStatus === 'all' || 
                          (filterStatus === 'overdue' 
-                           ? new Date(task.dueDate) < new Date() && task.status !== 'completed'
+                           ? isOverdue
                            : task.status === filterStatus);
     
     return matchesSearch && matchesStatus;
@@ -162,7 +191,9 @@ const TasksPage = () => {
 
   // Check if task is overdue
   const isOverdue = (dueDate, status) => {
-    return new Date(dueDate) < new Date() && status !== 'completed';
+    return new Date(dueDate) < new Date() && 
+           status !== 'completed' && 
+           status !== 'cancelled';
   };
 
   if (loading) {
@@ -189,7 +220,7 @@ const TasksPage = () => {
             onClick={() => navigate('/tasks/new')}
             className="mt-4 md:mt-0 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-200"
           >
-            <Plus className="h-4 w-4 mr-2" />
+            
             New Task
           </button>
         </div>
@@ -262,37 +293,38 @@ const TasksPage = () => {
           ) : (
             <ul className="divide-y divide-gray-200">
               {filteredTasks.map((task) => (
-                <li key={task._id} className="hover:bg-gray-50">
+                <li 
+                  key={task._id} 
+                  className="hover:bg-gray-50"
+                >
                   <div className="px-4 py-4 sm:px-6">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-black truncate">
-                        {task.title}
-                      </p>
-                      <div className="ml-2 flex-shrink-0 flex items-center space-x-2">
-                        <p className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      <div 
+                        className="flex-1 cursor-pointer"
+                        onClick={() => navigate(`/tasks/${task._id}`)}
+                      >
+                        <p className="text-sm font-medium text-black">
+                          {task.title}
+                        </p>
+                      </div>
+                      <div className="ml-4 flex items-center space-x-3">
+                        <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full whitespace-nowrap ${
                           isOverdue(task.dueDate, task.status) 
                             ? 'bg-red-100 text-red-800' 
                             : statusColor[task.status] || 'bg-gray-100 text-gray-800'
                         }`}>
                           {isOverdue(task.dueDate, task.status) ? 'Overdue' : task.status.replace('_', ' ')}
-                        </p>
+                        </span>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setTaskToDelete(task);
                           }}
-                          className="text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-red-50"
+                          className="text-gray-400 hover:text-red-500 p-1.5 rounded-full hover:bg-red-50"
                           title="Delete task"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
-                      </div>
-                    </div>
-                    <div className="mt-2 sm:flex sm:justify-between">
-                      <div className="sm:flex">
-                        <p className="flex items-center text-sm text-gray-500">
-                          {task.description}
-                        </p>
                       </div>
                       <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
                         <Calendar className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" />
@@ -347,7 +379,6 @@ const TasksPage = () => {
                         Are you sure you want to delete the task "{taskToDelete.title}"? This action cannot be undone.
                       </p>
                     </div>
-                  </div>
                 </div>
                 <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                   <button
@@ -371,6 +402,7 @@ const TasksPage = () => {
                   >
                     Cancel
                   </button>
+                </div>
                 </div>
               </div>
             </div>

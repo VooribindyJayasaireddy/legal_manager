@@ -21,6 +21,7 @@ import EditTask from './pages/EditTask';
 import AppointmentsList from './pages/Appointmentlist';
 import AppointmentDetails from './pages/appointmentdetails';
 import AppointmentForm from './pages/AppointmentForm';
+import AIChat from './pages/AIChat';
 
 import Clients from './pages/Clients';
 import AddClient from './pages/AddClient';
@@ -39,7 +40,8 @@ export const AuthContext = React.createContext({
   isLoading: true,
   user: null,
   login: () => {},
-  logout: () => {}
+  logout: () => {},
+  updateUser: () => {}
 });
 
 // Auth Provider Component
@@ -235,8 +237,37 @@ export const AuthProvider = ({ children }) => {
     logoutRef.current = logout;
   }, [logout]);
 
+  // Function to update user data in the context
+  const updateUser = useCallback((userData) => {
+    if (!userData) return;
+    
+    // Format user data consistently
+    const updatedUser = {
+      id: userData._id || userData.id,
+      username: userData.username || user?.username,
+      email: userData.email || user?.email,
+      firstName: userData.firstName || userData.first_name || user?.firstName || '',
+      lastName: userData.lastName || userData.last_name || user?.lastName || '',
+      role: userData.role || user?.role || 'user',
+      ...userData,
+      // Preserve existing user properties that aren't being updated
+      ...(user || {})
+    };
+    
+    console.log('Updating user context with:', updatedUser);
+    setUser(updatedUser);
+    return updatedUser;
+  }, [user]);
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ 
+      isAuthenticated, 
+      isLoading, 
+      user,
+      login, 
+      logout,
+      updateUser 
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -317,6 +348,10 @@ function App() {
               <Route path="/clients/new" element={<AddClient />} />
               <Route path="/clients/:id" element={<ClientDetails />} />
               <Route path="/clients/:id/edit" element={<EditClient />} />
+              
+              {/* AI Assistant Route */}
+              <Route path="/ai-assistant" element={<AIChat />} />
+             
             </Route>
 
             {/* Default Redirect */}

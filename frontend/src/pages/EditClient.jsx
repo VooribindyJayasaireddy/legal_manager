@@ -80,21 +80,37 @@ const EditClient = () => {
   }, [id]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
+    console.log('Field changed:', { name, value, type });
+    
+    // Handle different input types
+    const inputValue = type === 'checkbox' ? checked : value;
     
     if (['street', 'city', 'state', 'zipCode', 'country'].includes(name)) {
-      setFormData(prev => ({
-        ...prev,
-        address: {
-          ...prev.address,
-          [name]: value
-        }
-      }));
+      setFormData(prev => {
+        const newData = {
+          ...prev,
+          address: {
+            ...prev.address,
+            [name]: inputValue
+          }
+        };
+        console.log('Updated address data:', newData);
+        return newData;
+      });
     } else {
-      setFormData(prev => ({ 
-        ...prev, 
-        [name]: value 
-      }));
+      setFormData(prev => {
+        const newData = { 
+          ...prev, 
+          [name]: inputValue 
+        };
+        console.log('Updated form data:', newData);
+        // Log the status specifically for debugging
+        if (name === 'status') {
+          console.log('Status updated to:', inputValue);
+        }
+        return newData;
+      });
     }
   };
 
@@ -102,7 +118,14 @@ const EditClient = () => {
     e.preventDefault();
     setIsSubmitting(true);
     
+    // Log detailed form data before submission
+    console.log('=== Form Submission Debug ===');
     console.log('Form data before submit:', formData);
+    console.log('Current status value from form:', formData.status);
+    
+    // Check if status is in the expected format
+    const statusIsValid = statusOptions.some(option => option.value === formData.status);
+    console.log('Status is valid:', statusIsValid);
     
     try {
       // Format phone number
@@ -135,15 +158,25 @@ const EditClient = () => {
       };
       
       // Make the API call to update the client
-      console.log('Sending to API:', clientData);
+      console.log('=== Sending to API ===');
+      console.log('Client data being sent:', JSON.stringify(clientData, null, 2));
+      console.log('Status being sent:', clientData.status);
+      
       const response = await api.put(`/clients/${id}`, clientData);
-      console.log('API Response:', response.data);
+      
+      console.log('=== API Response ===');
+      console.log('Status code:', response.status);
+      console.log('Response data:', response.data);
+      
+      if (response.data && response.data.status) {
+        console.log('Status in response:', response.data.status);
+      }
       
       // Show success message
       toast.success('Client updated successfully!');
       
       // Redirect to client details page
-      navigate(`/clients/${id}`);
+      navigate(`/clients/${id}`, { state: { from: 'edit', updated: true } });
     } catch (error) {
       console.error('Error updating client:', error);
       toast.error(error.response?.data?.message || 'Failed to update client');

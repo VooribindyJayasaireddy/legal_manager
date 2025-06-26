@@ -8,7 +8,17 @@ const Client = require('../models/Client');
 exports.createClient = async (req, res) => {
   try {
     // Destructure client data from the request body
-    const { firstName, lastName, email, phone, address, dateOfBirth, occupation, notes } = req.body;
+    const { 
+      firstName, 
+      lastName, 
+      email, 
+      phone, 
+      address, 
+      dateOfBirth, 
+      occupation, 
+      notes,
+      status = 'Active' // Default status
+    } = req.body;
 
     // Check for required fields
     if (!firstName || !lastName) {
@@ -26,6 +36,7 @@ exports.createClient = async (req, res) => {
       dateOfBirth,
       occupation,
       notes,
+      status,
     });
 
     // Save the new client to the database
@@ -104,17 +115,18 @@ exports.updateClient = async (req, res) => {
     }
 
     // Update client fields based on the request body
-    const { firstName, lastName, email, phone, address, dateOfBirth, occupation, notes } = req.body;
+    const { firstName, lastName, email, phone, address, dateOfBirth, occupation, notes, status } = req.body;
 
-    // Update fields if they are provided in the request
-    if (firstName !== undefined) client.firstName = firstName;
-    if (lastName !== undefined) client.lastName = lastName;
-    if (email !== undefined) client.email = email;
-    if (phone !== undefined) client.phone = phone;
-    if (address !== undefined) client.address = address; // This will overwrite the entire address object
-    if (dateOfBirth !== undefined) client.dateOfBirth = dateOfBirth;
-    if (occupation !== undefined) client.occupation = occupation;
+    // Update client fields if they exist in the request
+    if (firstName) client.firstName = firstName;
+    if (lastName) client.lastName = lastName;
+    if (email) client.email = email;
+    if (phone) client.phone = phone;
+    if (address) client.address = address;
+    if (dateOfBirth) client.dateOfBirth = dateOfBirth;
+    if (occupation) client.occupation = occupation;
     if (notes !== undefined) client.notes = notes;
+    if (status) client.status = status;
 
     // Save the updated client
     const updatedClient = await client.save();
