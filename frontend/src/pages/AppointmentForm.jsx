@@ -80,6 +80,37 @@ const AppointmentForm = () => {
     loadData();
   }, [id]);
 
+  // Handle date change for datetime-local inputs
+  const handleDateChange = (e) => {
+    const { name, value } = e.target;
+    // Store the raw string value for the input
+    setForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    // If end time is being set and it's before start time, adjust start time
+    if (name === 'endTime' && value && new Date(value) < new Date(form.startTime || 0)) {
+      // Set start time to 1 hour before end time
+      const date = new Date(value);
+      date.setHours(date.getHours() - 1);
+      setForm(prev => ({
+        ...prev,
+        startTime: formatForDateTimeLocal(date)
+      }));
+    }
+  };
+
+  const formatForDateTimeLocal = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    // Handle invalid date
+    if (isNaN(date.getTime())) return '';
+    // Convert to local time and format as YYYY-MM-DDTHH:MM
+    const pad = num => num.toString().padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm(f => ({ ...f, [name]: value }));
@@ -88,23 +119,46 @@ const AppointmentForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    setError('');
+    
     try {
+      // Prepare the payload with proper date formatting
       const payload = {
-        ...form,
-        startTime: new Date(form.startTime),
-        endTime: new Date(form.endTime),
+        title: form.title,
+        description: form.description,
+        startTime: new Date(form.startTime).toISOString(),
+        endTime: new Date(form.endTime).toISOString(),
+        type: form.type,
+        status: form.status,
+        location: form.location,
+        notes: form.notes,
+        participants: [...form.participants],
       };
 
+      console.log('Submitting payload:', payload); // Debug log
+
       if (id) {
-        await api.put(`/appointments/${id}`, payload);
+        // For update
+        const response = await api.put(`/appointments/${id}`, payload);
+        console.log('Update response:', response); // Debug log
       } else {
-        await api.post('/appointments', payload);
+        // For create
+        const response = await api.post('/appointments', payload);
+        console.log('Create response:', response); // Debug log
       }
 
+      // Redirect to appointments list on success
       navigate('/appointments');
     } catch (err) {
-      console.error('Failed to submit form', err);
-      setError('Error saving appointment');
+      console.error('Failed to submit form:', err);
+      const errorMessage = err.response?.data?.message || 'Error saving appointment';
+      setError(errorMessage);
+      
+      // Show more detailed error in console for debugging
+      if (err.response) {
+        console.error('Error response data:', err.response.data);
+        console.error('Error status:', err.response.status);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -190,8 +244,9 @@ const AppointmentForm = () => {
                 <input
                   type="datetime-local"
                   name="startTime"
-                  value={form.startTime}
-                  onChange={handleChange}
+                  value={form.startTime || ''}
+                  onChange={handleDateChange}
+                  min={new Date().toISOString().slice(0, 16)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
@@ -203,8 +258,9 @@ const AppointmentForm = () => {
                 <input
                   type="datetime-local"
                   name="endTime"
-                  value={form.endTime}
-                  onChange={handleChange}
+                  value={form.endTime || ''}
+                  min={form.startTime || new Date().toISOString().slice(0, 16)}
+                  onChange={handleDateChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
@@ -365,72 +421,30 @@ const AppointmentForm = () => {
           </div>
         </div>
 
-        <div className="flex justify-between">
-          <div>
-            {id && (
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(true)}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-              >
-                Delete Appointment
-              </button>
-            )}
-          </div>
-          <div className="flex space-x-3">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting ? (
-                <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  {id ? 'Updating...' : 'Creating...'}
-                </span>
-              ) : id ? 'Update Appointment' : 'Create Appointment'}
-            </button>
-          </div>
+        <div className="flex justify-end space-x-3">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? (
+              <span className="flex items-center">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                {id ? 'Updating...' : 'Creating...'}
+              </span>
+            ) : id ? 'Update Appointment' : 'Create Appointment'}
+          </button>
         </div>
-
-        {/* Delete Confirmation Modal */}
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Delete Appointment</h3>
-              <p className="text-gray-600 mb-6">Are you sure you want to delete this appointment? This action cannot be undone.</p>
-              <div className="flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowDeleteConfirm(false);
-                    handleDeleteAppointment();
-                  }}
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </form>
     </div>
   );

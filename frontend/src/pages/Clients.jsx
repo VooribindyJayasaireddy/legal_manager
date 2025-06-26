@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Plus, 
   Mail, 
@@ -11,11 +12,28 @@ import {
   Trash2, 
   AlertCircle, 
   Loader2, 
-  CheckCircle 
+  CheckCircle,
+  Gavel,
+  Scale,
+  Briefcase,
+  FileText,
+  Building2,
+  Landmark,
+  Filter,
+  FileDown,
+  ChevronDown
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import Layout from '../components/Layout';
+
+// Color scheme
+const colors = {
+  primary: '#000000',    // Black
+  secondary: '#333333',  // Dark gray
+  accent: '#666666',     // Medium gray
+  light: '#f5f5f5',     // Light gray
+  dark: '#000000'       // Black
+};
 
 // Memoized Client Card Component
 const ClientCard = memo(({ client, onView, onDelete }) => {
@@ -44,29 +62,37 @@ const ClientCard = memo(({ client, onView, onDelete }) => {
   
   return (
     <div 
-      className="border rounded-lg p-2 sm:p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 cursor-pointer hover:bg-gray-50 transition-colors"
+      className="border border-gray-200 rounded-lg p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 cursor-pointer hover:bg-gray-100 hover:shadow-sm transition-all duration-200 group"
       onClick={handleCardClick}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && handleCardClick(e)}
     >
-      <div className="flex items-start gap-2 w-full">
-        <div className="bg-gray-200 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-lg sm:text-xl text-gray-500 flex-shrink-0">
-          {firstName ? firstName.charAt(0).toUpperCase() : ''}
+      <div className="flex items-start gap-3 w-full">
+        <div className="relative">
+          <div className="bg-gray-100 w-12 h-12 rounded-lg flex items-center justify-center text-xl font-medium text-gray-800 flex-shrink-0">
+            {firstName ? firstName.charAt(0).toUpperCase() : 'C'}
+          </div>
+          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-gray-600 rounded-full border-2 border-white"></div>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex justify-between items-start">
             <h2 className="text-base sm:text-lg font-semibold text-gray-900">
               {[firstName, lastName].filter(Boolean).join(' ') || 'Unnamed Client'}
             </h2>
-            <button
-              onClick={handleDelete}
-              className="text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-red-50 mt-1"
-              title="Delete client"
-              aria-label="Delete client"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+            <div className="flex items-center space-x-1">
+              <button
+                onClick={handleDelete}
+                className="text-gray-500 hover:text-black p-1.5 rounded-md hover:bg-gray-200 transition-colors duration-150"
+                title="Delete client"
+                aria-label="Delete client"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+              <button className="text-gray-500 hover:text-black p-1.5 rounded-md hover:bg-gray-200 transition-colors duration-150">
+                <FileText className="h-4 w-4" />
+              </button>
+            </div>
           </div>
           {occupation && (
             <p className="text-sm text-gray-500 mt-0.5">{occupation}</p>
@@ -324,58 +350,61 @@ const Clients = () => {
       )}
 
       <div className="p-6 space-y-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
+        <div className="flex justify-between items-center mb-8">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 rounded-lg bg-blue-50">
+              <Scale className="h-6 w-6 text-blue-700" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-800">Client Management</h1>
+          </div>
           <button
             onClick={handleAddClient}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
+            className="inline-flex items-center px-4 py-2.5 border border-black text-sm font-medium rounded-md text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-200 shadow-sm"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Client
+            <UserPlus className="-ml-1 mr-2 h-5 w-5" />
+            Add New Client
           </button>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="px-3 py-3">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 bg-indigo-500 rounded-md p-2">
-                  <User className="h-4 w-4 text-white" />
+          <div className="bg-white overflow-hidden shadow-sm border border-gray-100 rounded-lg hover:shadow-md transition-shadow duration-200">
+            <div className="px-4 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-shrink-0 bg-blue-50 p-3 rounded-lg">
+                  <User className="h-6 w-6 text-blue-600" />
                 </div>
-                <div className="ml-3">
-                  <dl>
-                    <dt className="text-xs font-medium text-gray-500 truncate">
-                      Total Clients
-                    </dt>
-                    <dd className="flex items-baseline">
-                      <div className="text-lg font-semibold text-gray-900">
-                        {totalClients}
-                      </div>
-                    </dd>
-                  </dl>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-gray-500">Total Clients</p>
+                  <p className="text-2xl font-bold text-gray-800">{totalClients}</p>
                 </div>
+              </div>
+              <div className="mt-3 flex items-center text-xs text-blue-600">
+                <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50">
+                  <span className="w-2 h-2 bg-blue-500 rounded-full mr-1"></span>
+                  Active
+                </span>
               </div>
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="px-3 py-3">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 bg-green-500 rounded-md p-2">
-                  <UserPlus className="h-4 w-4 text-white" />
+          <div className="bg-white overflow-hidden shadow-sm border border-gray-100 rounded-lg hover:shadow-md transition-shadow duration-200">
+            <div className="px-4 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-shrink-0 bg-green-50 p-3 rounded-lg">
+                  <UserPlus className="h-6 w-6 text-green-600" />
                 </div>
-                <div className="ml-3">
-                  <dl>
-                    <dt className="text-xs font-medium text-gray-500 truncate">
-                      New This Month
-                    </dt>
-                    <dd className="flex items-baseline">
-                      <div className="text-lg font-semibold text-gray-900">
-                        {newThisMonth}
-                      </div>
-                    </dd>
-                  </dl>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-gray-500">New This Month</p>
+                  <p className="text-2xl font-bold text-gray-800">{newThisMonth}</p>
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-green-500 rounded-full" 
+                    style={{ width: `${Math.min(100, (newThisMonth / Math.max(1, totalClients)) * 100)}%` }}
+                  ></div>
                 </div>
               </div>
             </div>
@@ -383,7 +412,7 @@ const Clients = () => {
         </div>
 
         {/* Search and Filter */}
-        <div className="bg-white shadow rounded-lg p-4">
+        <div className="bg-white shadow-sm border border-gray-100 rounded-lg p-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="relative flex-1">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -391,11 +420,48 @@ const Clients = () => {
               </div>
               <input
                 type="text"
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-black focus:border-black sm:text-sm"
-                placeholder="Search clients..."
+                className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-black sm:text-sm transition duration-150 ease-in-out"
+                placeholder="Search clients by name, email, or phone..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="relative group">
+                <button className="px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150 flex items-center">
+                  <Filter className="h-4 w-4 mr-1.5" />
+                  Filter
+                  <ChevronDown className="ml-1 h-4 w-4 text-gray-400" />
+                </button>
+                <div className="absolute right-0 mt-1 w-56 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-10 hidden group-hover:block">
+                  <div className="px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</div>
+                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Active</a>
+                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Inactive</a>
+                  
+                  <div className="border-t border-gray-100 my-1"></div>
+                  <div className="px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Info</div>
+                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Missing Email</a>
+                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Missing Phone</a>
+                  
+                  <div className="border-t border-gray-100 my-1"></div>
+                  <div className="px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Date Added</div>
+                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Last 7 Days</a>
+                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">This Month</a>
+                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">This Year</a>
+                </div>
+              </div>
+              <div className="relative group">
+                <button className="px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150 flex items-center">
+                  <FileDown className="h-4 w-4 mr-1.5" />
+                  Export
+                  <ChevronDown className="ml-1 h-4 w-4 text-gray-400" />
+                </button>
+                <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-100 py-1 z-10 hidden group-hover:block">
+                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Export as CSV</a>
+                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Export as PDF</a>
+                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Export as Excel</a>
+                </div>
+              </div>
             </div>
           </div>
         </div>

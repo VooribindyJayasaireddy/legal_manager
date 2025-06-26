@@ -203,7 +203,7 @@ const CalendarPage = () => {
                 setShowModal(true);
               }}
             >
-              <FaPlus /> New Event
+              New Event
             </button>
           </div>
         </div>

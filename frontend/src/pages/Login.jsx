@@ -342,22 +342,37 @@ const Login = () => {
         }
         
         // Extract user data with fallbacks for different response formats
-        const userData = user || {
-          _id: data.data._id,
-          username: data.data.username,
-          email: data.data.email,
-          firstName: data.data.firstName || data.data.first_name,
-          lastName: data.data.lastName || data.data.last_name,
-          role: data.data.role
+        const userData = {
+          _id: user?._id || data.data._id || data.data.user?._id,
+          id: user?.id || data.data.id || data.data.user?.id,
+          username: user?.username || data.data.username,
+          email: user?.email || data.data.email,
+          firstName: user?.firstName || user?.first_name || data.data.firstName || data.data.first_name || '',
+          lastName: user?.lastName || user?.last_name || data.data.lastName || data.data.last_name || '',
+          role: user?.role || data.data.role || 'user',
+          ...(user || data.data.user || data.data) // Spread any additional user data
         };
+        
+        // Ensure we have a valid ID
+        if (!userData._id && !userData.id) {
+          console.warn('No user ID found in login response, using fallback ID');
+          userData._id = 'temp_' + Date.now();
+        } else if (!userData._id && userData.id) {
+          userData._id = userData.id;
+        }
         
         console.log('Logging in with user data:', userData);
         
-        // Call the login function from AuthContext with the user data and token
-        login(userData, token);
-        
-        // Navigate to dashboard
-        navigate('/dashboard');
+        try {
+          // Call the login function from AuthContext with the user data and token
+          login(userData, token);
+          
+          // Navigate to dashboard
+          navigate('/dashboard');
+        } catch (loginError) {
+          console.error('Error in login function:', loginError);
+          throw new Error('Failed to complete login process');
+        }
       } else {
         console.error('Login response missing token:', data);
         throw new Error('No authentication token received in response');
@@ -385,6 +400,15 @@ const Login = () => {
     setError(message);
     setMessageType(type);
     setShowMessage(true);
+    
+    // Auto-hide success messages after 5 seconds
+    if (type === 'success') {
+      setTimeout(() => {
+        if (showMessage && messageType === 'success') {
+          setShowMessage(false);
+        }
+      }, 5000);
+    }
   };
 
   const closeMessage = () => {
@@ -432,10 +456,7 @@ const Login = () => {
 
       if (!response.ok) {
         // Handle specific error statuses
-        if (response.status === 404) {
-          // For security, don't reveal if email exists or not
-          console.log('Email not found in system');
-        } else if (response.status === 400) {
+        if (response.status === 400) {
           throw new Error(data.message || 'Invalid email format');
         } else if (response.status >= 500) {
           throw new Error('Unable to process password reset. Please try again later.');
@@ -444,8 +465,8 @@ const Login = () => {
         }
       }
       
-      // Always show success message (for security, don't reveal if email exists or not)
-      setResetStatus('If an account exists with this email, you will receive a password reset link shortly.');
+      // Show success message in popup (for security, don't reveal if email exists or not)
+      displayMessage('If an account exists with this email, you will receive a password reset link shortly.', 'success');
       setEmail('');
       
     } catch (err) {
@@ -530,41 +551,77 @@ const Login = () => {
         if (!response.ok) {
           console.error('Registration failed with status:', response.status, 'Response data:', responseData);
           
+          let errorMessage = 'Registration failed. Please try again.';
+          
           if (response.status === 400) {
             // If there are validation errors, show them
             if (responseData.errors && Array.isArray(responseData.errors)) {
-              throw new Error(responseData.errors.join('\n'));
+              errorMessage = responseData.errors.join('\n');
+            } else {
+              errorMessage = responseData.message || 'Invalid registration data. Please check your input.';
             }
-            throw new Error(responseData.message || 'Invalid registration data. Please check your input.');
           } else if (response.status === 409) {
-            throw new Error('An account with this email or username already exists');
+            errorMessage = 'An account with this email or username already exists. Please use a different email or username.';
           } else if (response.status >= 500) {
-            throw new Error('Server error. Please try again later.');
-          } else {
-            throw new Error(responseData.message || 'Registration failed. Please try again.');
+            errorMessage = 'Server error. Please try again later.';
+          } else if (responseData.message) {
+            errorMessage = responseData.message;
           }
+          
+          // Throw error which will be caught by the outer catch block
+          throw new Error(errorMessage);
         }
 
         // Registration successful
         const { token, user } = responseData.data;
         
-        if (token) {
-          // Call login with user data and token
-          login(user, token);
+        if (token && user) {
+          // Ensure user object has required fields
+          const userData = {
+            _id: user._id || user.id,
+            username: user.username,
+            email: user.email,
+            firstName: user.firstName || user.first_name || '',
+            lastName: user.lastName || user.last_name || '',
+            role: user.role || 'user',
+            ...user
+          };
           
-          // Clear form
-          setFormData({
-            username: '',
-            email: '',
-            password: '',
-            firstName: '',
-            lastName: '',
-            phoneNumber: '',
-            agreeTerms: false
-          });
+          // Show registration success message
+          displayMessage('Registration successful! Logging you in...', 'success');
           
-          // Redirect to dashboard
-          navigate('/dashboard');
+          // Small delay to show the success message
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          
+          try {
+            // Call login with user data and token
+            await login(userData, token);
+            
+            // Show welcome message
+            displayMessage(`Welcome, ${userData.firstName || userData.username}!`, 'success');
+            
+            // Clear form
+            setFormData({
+              username: '',
+              email: '',
+              password: '',
+              firstName: '',
+              lastName: '',
+              phoneNumber: '',
+              agreeTerms: false
+            });
+            
+            // Redirect to dashboard after a short delay
+            setTimeout(() => {
+              navigate('/dashboard');
+            }, 1000);
+            
+          } catch (loginError) {
+            console.error('Login after registration failed:', loginError);
+            // If auto-login fails, switch to login tab with instructions
+            setActiveTab('login');
+            displayMessage('Registration successful! Please log in with your credentials.', 'success');
+          }
         } else {
           // If no token, show success message and switch to login
           setActiveTab('login');
@@ -583,7 +640,10 @@ const Login = () => {
         }
       }
     } catch (err) {
-      setError(err.message || 'An error occurred');
+      // Only show error if it hasn't been handled already
+      if (!err.handled) {
+        setError(err.message || 'An error occurred');
+      }
     } finally {
       setIsSubmitting(false);
       setShowGavel(false);

@@ -13,17 +13,45 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 
 // Helper to call Gemini for text generation
 async function callGemini(prompt, chatHistory = [], generationConfig = {}) {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" }); // Use the recommended model
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    // Add instructions for formal response
+    const systemInstruction = {
+        role: "model",
+        parts: [{
+            text: "You are a professional legal assistant. Provide clear, formal responses without using markdown formatting (no **, *, _, etc.). Use proper grammar and complete sentences. Structure your response in a professional manner with appropriate paragraphs."
+        }]
+    };
 
     try {
-        const contents = [...chatHistory, { role: "user", parts: [{ text: prompt }] }];
-        const result = await model.generateContent({ contents, ...generationConfig });
+        const contents = [
+            systemInstruction,
+            ...chatHistory,
+            { role: "user", parts: [{ text: `Please provide a formal response to: ${prompt}` }] }
+        ];
+        
+        const generationConfig = {
+            temperature: 0.7,
+            topP: 0.8,
+            topK: 40,
+            maxOutputTokens: 2048,
+        };
+        
+        const result = await model.generateContent({ contents, generationConfig });
         const response = await result.response;
+        
         // Check if response is empty or malformed before returning
         if (!response || !response.text) {
-             throw new Error("Empty or invalid response from AI model.");
+            throw new Error("Empty or invalid response from AI model.");
         }
-        return response.text();
+        
+        // Clean up any remaining markdown
+        let cleanText = response.text()
+            .replace(/\*\*|\*|_|`|#/g, '') // Remove markdown
+            .replace(/\n{3,}/g, '\n\n') // Replace multiple newlines with double newlines
+            .trim();
+            
+        return cleanText;
     } catch (error) {
         console.error('Error calling Gemini API:', error);
         // Provide more detailed error logging from Gemini if available
@@ -39,30 +67,92 @@ async function callGemini(prompt, chatHistory = [], generationConfig = {}) {
 // @access  Private
 exports.handleChatQuery = asyncHandler(async (req, res) => {
     try {
+        console.log('Received AI chat request:', JSON.stringify({
+            body: req.body,
+            user: req.user?.id
+        }, null, 2));
+
         const { message, chatHistory = [], contextData = {} } = req.body;
 
+        if (!message || typeof message !== 'string') {
+            console.error('Invalid message format:', message);
+            return res.status(400).json({ 
+                success: false,
+                message: 'Message is required and must be a string' 
+            });
+        }
+
         let fullPrompt = message;
-        // Add context to prompt based on provided data
-        if (contextData.relevantText) {
-            fullPrompt = `Consider the following document content for context: "${contextData.relevantText}".\n\n${fullPrompt}`;
-        }
-        if (contextData.caseId) {
-            const caseDetails = await Case.findById(contextData.caseId);
-            if (caseDetails) {
-                fullPrompt = `Regarding Case "${caseDetails.caseName}" (Number: ${caseDetails.caseNumber}, Description: ${caseDetails.description || 'N/A'}): \n\n${fullPrompt}`;
+        
+        try {
+            // Add context to prompt based on provided data
+            if (contextData.fileContent) {
+                // Truncate file content if too long to avoid hitting token limits
+                const maxFileLength = 10000; // Adjust based on your needs
+                const truncatedContent = contextData.fileContent.length > maxFileLength 
+                    ? contextData.fileContent.substring(0, maxFileLength) + '... [content truncated]'
+                    : contextData.fileContent;
+                
+                fullPrompt = `Document Name: ${contextData.fileName || 'Untitled Document'}\n` +
+                            `Document Content:\n${truncatedContent}\n\n` +
+                            `Based on the above document, ${fullPrompt}`;
+            } else if (contextData.relevantText) {
+                fullPrompt = `Consider the following document content for context: "${contextData.relevantText}".\n\n${fullPrompt}`;
             }
-        }
-        if (contextData.clientId) {
-            const clientDetails = await Client.findById(contextData.clientId);
-            if (clientDetails) {
-                fullPrompt = `Regarding Client "${clientDetails.firstName} ${clientDetails.lastName}" (Email: ${clientDetails.email || 'N/A'}, Phone: ${clientDetails.phone || 'N/A'}): \n\n${fullPrompt}`;
+            
+            if (contextData.caseId) {
+                const caseDetails = await Case.findById(contextData.caseId);
+                if (caseDetails) {
+                    fullPrompt = `Regarding Case "${caseDetails.caseName}" (Number: ${caseDetails.caseNumber}, Description: ${caseDetails.description || 'N/A'}): \n\n${fullPrompt}`;
+                }
             }
+            
+            if (contextData.clientId) {
+                const clientDetails = await Client.findById(contextData.clientId);
+                if (clientDetails) {
+                    fullPrompt = `Regarding Client "${clientDetails.firstName} ${clientDetails.lastName}" (Email: ${clientDetails.email || 'N/A'}, Phone: ${clientDetails.phone || 'N/A'}): \n\n${fullPrompt}`;
+                }
+            }
+            
+            console.log('Sending to Gemini:', { 
+                promptLength: fullPrompt.length,
+                hasChatHistory: chatHistory?.length > 0,
+                contextKeys: Object.keys(contextData),
+                hasFileContent: !!contextData.fileContent,
+                fileContentLength: contextData.fileContent?.length || 0
+            });
+            
+            const aiResponse = await callGemini(fullPrompt, chatHistory);
+            
+            console.log('Received AI response:', {
+                responseLength: aiResponse?.length || 0
+            });
+            
+            res.status(200).json({ 
+                success: true,
+                response: aiResponse 
+            });
+            
+        } catch (error) {
+            console.error('Error in AI processing:', {
+                error: error.message,
+                stack: error.stack
+            });
+            throw error;
         }
         
-        const aiResponse = await callGemini(fullPrompt, chatHistory);
-        res.status(200).json({ response: aiResponse });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('AI Chat Error:', {
+            error: error.message,
+            stack: error.stack,
+            requestBody: req.body
+        });
+        
+        res.status(500).json({ 
+            success: false,
+            message: 'Failed to process AI request',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 });
 

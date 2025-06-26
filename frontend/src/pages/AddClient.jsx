@@ -15,6 +15,7 @@ const AddClient = () => {
     phone: '',
     dateOfBirth: '',
     occupation: '',
+    status: 'Active', // Default status
     address: {
       street: '',
       city: '',
@@ -297,6 +298,20 @@ const AddClient = () => {
                     onChange={handleChange}
                     className="mt-1 w-full border rounded-lg px-3 py-2" 
                   />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Status</label>
+                  <select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleChange}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Lead">Lead</option>
+                    <option value="Former Client">Former Client</option>
+                  </select>
                 </div>
               </div>
             </div>

@@ -74,6 +74,13 @@ const clientSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
+  // Client status (Active, Inactive, Lead, etc.)
+  status: {
+    type: String,
+    enum: ['Active', 'Inactive', 'Lead', 'Former Client'],
+    default: 'Active',
+    required: true
+  },
   // Automatic timestamps for creation and last update
 }, {
   timestamps: true, // Adds `createdAt` and `updatedAt` fields automatically
