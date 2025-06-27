@@ -299,7 +299,7 @@ const Login = () => {
       console.log('Attempting login with email:', loginData.email);
 
       // Make API call to backend
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -432,7 +432,7 @@ const Login = () => {
     try {
       console.log('Sending password reset request for email:', email);
       
-      const response = await fetch('http://localhost:5000/api/auth/forgotpassword', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/forgotpassword`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -518,7 +518,7 @@ const Login = () => {
         });
 
         // Send registration request
-        const response = await fetch('http://localhost:5000/api/auth/register', {
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/register`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
