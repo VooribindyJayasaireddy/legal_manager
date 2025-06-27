@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useCallback } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { Eye, Pencil, ChevronDown, Search, Loader2, Trash2 } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import api from "../utils/api";
@@ -28,13 +28,12 @@ const CasesPage = () => {
   };
 
   // Show notification
-  const showNotification = useCallback((type, message) => {
+  const showNotification = (type, message) => {
     setNotification({ type, message, show: true });
-    const timer = setTimeout(() => {
+    setTimeout(() => {
       setNotification(prev => ({ ...prev, show: false }));
     }, 3000);
-    return () => clearTimeout(timer);
-  }, []);
+  };
 
   // Fetch cases from API
   const fetchCases = async () => {

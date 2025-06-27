@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { format, addMinutes, isBefore, parseISO } from 'date-fns';
+import { format, addMinutes, isBefore } from 'date-fns';
 import { FaBell, FaSave, FaTrash } from 'react-icons/fa';
 import { X } from 'lucide-react';
 
@@ -48,6 +48,12 @@ const EventModal = ({ event, onClose, onSave, onDelete }) => {
       }
     }
   }, [event]);
+
+  useEffect(() => {
+    if (showReminder) {
+      updateReminder();
+    }
+  }, [showReminder, updateReminder]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -104,7 +110,7 @@ const EventModal = ({ event, onClose, onSave, onDelete }) => {
     if (showReminder) {
       updateReminder();
     }
-  }, [reminderTime, reminderUnit, formData.start, showReminder, updateReminder]);
+  }, [reminderTime, reminderUnit, formData.start, showReminder]);
 
   const handleSubmit = (e) => {
     e.preventDefault();

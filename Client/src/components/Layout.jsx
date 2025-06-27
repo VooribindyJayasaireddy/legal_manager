@@ -1,17 +1,23 @@
-import React, { useEffect, useState, useContext, useCallback, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+// Import necessary libraries
+import React, { useEffect, useState, useContext, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../App';
 import GavelLoading from './GavelLoading';
+
 import { 
   Home, 
   FileText, 
   Calendar, 
   Users, 
+  Settings, 
   Bell, 
+  Search, 
   UserCircle, 
   LogOut, 
-  ClipboardList,
-  Bot
+  ClipboardList, 
+  MessageSquareText, 
+  Bot, 
+  FileEdit
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -27,33 +33,12 @@ const api = axios.create({
 const Sidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { logout } = useContext(AuthContext);
-  const location = useLocation();
-  const pathname = location.pathname;
-  const isActive = useCallback((path) => pathname === path, [pathname]);
+  const pathname = window.location.pathname;
+  const isActive = (path) => pathname === path;
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [ripple, setRipple] = useState(null);
-  const buttonRef = useRef(null);
-
+  
   const handleLogout = async (e) => {
     try {
-      // Create ripple effect
-      const button = e.currentTarget;
-      const rect = button.getBoundingClientRect();
-      const size = Math.max(rect.width, rect.height);
-      const x = e.clientX - rect.left - size / 2;
-      const y = e.clientY - rect.top - size / 2;
-      
-      setRipple({
-        width: size,
-        height: size,
-        left: x,
-        top: y,
-        show: true
-      });
-      
-      // Add a delay to show the ripple animation
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
       // Show loading state
       setIsLoggingOut(true);
       
@@ -68,7 +53,6 @@ const Sidebar = ({ isOpen, onClose }) => {
       console.error('Logout error:', error);
     } finally {
       setIsLoggingOut(false);
-      setRipple(null);
     }
   };
 
@@ -223,18 +207,6 @@ const Sidebar = ({ isOpen, onClose }) => {
             className="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg group relative overflow-hidden transition-all duration-500 hover:bg-gradient-to-r from-red-500/10 to-red-600/10"
             disabled={isLoggingOut}
           >
-            {ripple?.show && (
-              <span 
-                className="absolute bg-red-500/30 rounded-full transform -translate-x-1/2 -translate-y-1/2 animate-ripple"
-                style={{
-                  width: `${ripple.width}px`,
-                  height: `${ripple.height}px`,
-                  left: `${ripple.left + ripple.width/2}px`,
-                  top: `${ripple.top + ripple.height/2}px`,
-                }}
-                onAnimationEnd={() => setRipple(prev => ({ ...prev, show: false }))}
-              />
-            )}
             {/* Animated background effect */}
             <span className="absolute inset-0 bg-gradient-to-r from-red-500/5 to-red-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></span>
             
@@ -516,7 +488,6 @@ const Layout = ({ children }) => {
   const { user } = useContext(AuthContext);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const location = useLocation();
 
   useEffect(() => {
     // Simulate loading user data
@@ -530,7 +501,7 @@ const Layout = ({ children }) => {
   // Close sidebar when route changes
   useEffect(() => {
     setIsSidebarOpen(false);
-  }, [location.pathname]);
+  }, [window.location.pathname]);
 
   if (isLoading) {
     return (
