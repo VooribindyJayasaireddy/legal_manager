@@ -11,16 +11,16 @@ dotenv.config();
 // Create Express app
 const app = express();
 
-// --- Middleware ---
-// CORS configuration
+// --- Middleware --
 const corsOptions = {
-  origin: 'http://localhost:3000', // Your frontend URL
-  credentials: true, // Allow credentials (cookies, authorization headers)
+  origin: ['http://localhost:3000', 'http://3.84.13.239', 'http://cloud-1-jay.s3-website-us-east-1.amazonaws.com/'],
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Cache', 'X-Requested-With'],
   exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
   optionsSuccessStatus: 204
 };
+
 
 // Enable CORS with the specified options
 app.use(cors(corsOptions));
@@ -57,9 +57,15 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/ai', aiRoutes);
 
 // Health check route
-app.get('/', (req, res) => {
-  res.send('API is running...');
+app.listen(5000, '0.0.0.0', () => {
+  console.log("Server running on port 5000");
 });
+// Health Check Route
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ message: 'Backend is running' });
+});
+
+
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
