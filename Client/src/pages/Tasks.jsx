@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { Search, Loader2, Calendar, AlertCircle, CheckCircle, Clock, Plus, Trash2 } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import api from "../utils/api";
@@ -34,13 +34,12 @@ const TasksPage = () => {
   };
 
   // Show notification
-  const showNotification = useCallback((type, message) => {
+  const showNotification = (type, message) => {
     setNotification({ type, message, show: true });
-    const timer = setTimeout(() => {
+    setTimeout(() => {
       setNotification(prev => ({ ...prev, show: false }));
     }, 3000);
-    return () => clearTimeout(timer);
-  }, []);
+  };
 
   // Handle task deletion
   const handleDeleteTask = async () => {
@@ -108,7 +107,7 @@ const TasksPage = () => {
   // Mock stats will be calculated from mockTasks, so we don't need this constant anymore
 
   // Fetch tasks from API with fallback to mock data
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -154,12 +153,12 @@ const TasksPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [mockTasks, showNotification]);
+  };
 
-  // Fetch tasks on component mount
+  // Initial data fetch
   useEffect(() => {
     fetchTasks();
-  }, [fetchTasks]);
+  }, []);
 
   // Filter tasks based on search and status filter
   const filteredTasks = tasks.filter(task => {

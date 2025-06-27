@@ -27,7 +27,7 @@ const AppointmentForm = () => {
   const [usersError, setUsersError] = useState('');
   const [manualParticipant, setManualParticipant] = useState('');
   const [manualParticipants, setManualParticipants] = useState([]);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // Removed unused showDeleteConfirm state
 
   // Fetch options and existing appointment if editing
   useEffect(() => {
@@ -170,18 +170,6 @@ const AppointmentForm = () => {
       participants: f.participants.filter(id => id !== participantId)
     }));
     setManualParticipants(prev => prev.filter(p => p.id !== participantId));
-  };
-
-  const handleDeleteAppointment = async () => {
-    if (!id) return;
-    
-    try {
-      await api.delete(`/appointments/${id}`);
-      navigate('/appointments');
-    } catch (err) {
-      console.error('Failed to delete appointment', err);
-      setError('Failed to delete appointment');
-    }
   };
 
   if (loading) {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import moment from 'moment';
-import { Briefcase, FileText, Clock, CheckCircle, AlertCircle, Users } from 'lucide-react';
+import { Briefcase, FileText, Clock, CheckCircle, Users } from 'lucide-react';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
 import { Bar, Pie } from 'react-chartjs-2';
 import api from '../utils/api';
@@ -741,48 +741,7 @@ const Dashboard = () => {
   );
 };
 
-// Reusable Section Component
-const Section = ({ 
-  title, 
-  viewAllPath, 
-  isLoading, 
-  error, 
-  items = [], 
-  emptyMessage, 
-  gridLayout = false,
-  renderItem 
-}) => {
-  const navigate = useNavigate();
-  
-  return (
-    <div className="bg-white shadow rounded-lg overflow-hidden">
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">{title}</h2>
-          <button 
-            onClick={() => navigate(viewAllPath)}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
-          >
-            View All <span className="ml-1">→</span>
-          </button>
-        </div>
-        {isLoading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-          </div>
-        ) : error ? (
-          <div className="text-red-600 text-center py-4">{error}</div>
-        ) : items.length > 0 ? (
-          <div className={gridLayout ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4' : 'space-y-4'}>
-            {items.slice(0, 5).map(item => renderItem(item))}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-gray-500">{emptyMessage}</div>
-        )}
-      </div>
-    </div>
-  );
-};
+
 
 // SummaryCard Component
 const SummaryCard = ({

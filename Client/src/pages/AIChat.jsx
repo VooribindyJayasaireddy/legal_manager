@@ -1,39 +1,12 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'; // Added useMemo and useCallback
 import { motion } from 'framer-motion';
-import { Send, Loader2, FileText, Bot as BotIcon, Plus, MessageSquare, Trash2, Edit3 } from 'lucide-react';
+import { Send, Loader2, FileText, Bot as BotIcon, Plus, MessageSquare, Trash2 } from 'lucide-react';
 import MessageBubble from './MessageBubble';
 import FileAttachment from './FileAttachment';
-import api from '../utils/api';
 import Layout from '../components/Layout';
 import { toast } from 'react-toastify';
 import { aiService } from '../services/aiService';
 
-// Helper function to load messages from localStorage
-const loadMessages = () => {
-  const savedMessages = localStorage.getItem('chatMessages');
-  if (savedMessages) {
-    try {
-      const parsedMessages = JSON.parse(savedMessages);
-      // Convert string timestamps back to Date objects
-      return parsedMessages.map(msg => ({
-        ...msg,
-        timestamp: new Date(msg.timestamp)
-      }));
-    } catch (error) {
-      console.error('Error parsing saved messages:', error);
-      return [];
-    }
-  }
-  // Default welcome message if no saved messages
-  return [{ 
-    id: 1, 
-    text: "Hello! I'm your legal assistant. How can I help?", 
-    sender: 'bot', 
-    timestamp: new Date() 
-  }];
-};
-
-// Helper function to generate a unique ID
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
 const AIChat = () => {
@@ -69,11 +42,10 @@ const AIChat = () => {
     return lastActive || (chats[0]?.id || null);
   });
   
-  // Get active chat messages using useMemo to prevent unnecessary recalculations
-  const messages = useMemo(() => 
-    chats.find(chat => chat.id === activeChatId)?.messages || [], 
-    [chats, activeChatId]
-  );
+  // Get active chat messages
+  const messages = useMemo(() => {
+    return chats.find(chat => chat.id === activeChatId)?.messages || [];
+  }, [chats, activeChatId]);
   
   // Update active chat when chats change
   useEffect(() => {
@@ -116,9 +88,9 @@ const AIChat = () => {
   };
   
   // Switch to a different chat
-  const switchChat = (chatId) => {
+  const switchChat = useCallback((chatId) => {
     setActiveChatId(chatId);
-  };
+  }, [setActiveChatId]);
   
   // Delete a chat
   const deleteChat = (chatId, e) => {
@@ -152,8 +124,6 @@ const AIChat = () => {
           : chat
       )
     );
-    setEditingChatId(null);
-    setChatTitleInput('');
   };
 
   // Start editing chat title
@@ -189,15 +159,15 @@ const AIChat = () => {
 
   // Update chat title based on first user message
   useEffect(() => {
-    if (messages.length === 2 && messages[1].sender === 'user') {
+    if (messages().length === 2 && messages()[1].sender === 'user') {
       const activeChat = chats.find(chat => chat.id === activeChatId);
       // Only auto-update title if it's still the default 'New Chat'
       if (activeChat && activeChat.title === 'New Chat') {
-        const firstUserMessage = messages[1].text.substring(0, 30);
-        updateChatTitle(activeChatId, firstUserMessage + (messages[1].text.length > 30 ? '...' : ''));
+        const firstUserMessage = messages()[1].text.substring(0, 30);
+        updateChatTitle(activeChatId, firstUserMessage + (messages()[1].text.length > 30 ? '...' : ''));
       }
     }
-  }, [messages.length]);
+  }, [messages, activeChatId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -217,23 +187,32 @@ const AIChat = () => {
     );
   };
 
-  const handleSend = async (e) => {
-    e.preventDefault();
-    if (!input.trim() && !selectedFile) return;
+  // Handle sending a message
+  const handleSendMessage = useCallback(async (text, files = []) => {
+    if (!text.trim() && !selectedFile) return;
 
     // Create user message with file info if present
-    const messageText = input || `File: ${selectedFile.name}`;
-    const userMessage = { 
-      id: Date.now(), 
+    const messageText = text || (selectedFile ? `File: ${selectedFile.name}` : '');
+    const userMessage = {
+      id: Date.now(),
       text: messageText,
-      sender: 'user', 
+      sender: 'user',
       timestamp: new Date().toISOString(),
-      ...(selectedFile && { file: selectedFile.name })
+      ...(selectedFile && { file: selectedFile.name }),
+      files: files.map(file => ({
+        name: file.name,
+        type: file.type,
+        size: file.size
+      }))
     };
-    
-    // First, update the UI with the user's message immediately
+
+    // Update UI with user's message immediately
     updateMessages([userMessage]);
     setInput('');
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    
+    // Show loading state
     setIsLoading(true);
 
     try {
@@ -293,7 +272,7 @@ const AIChat = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [input, messages, selectedFile, updateMessages]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -434,7 +413,10 @@ const AIChat = () => {
             <div className="bg-gray-800 px-4 py-3 border-t border-gray-700 shadow-sm flex-shrink-0">
               {selectedFile && <FileAttachment file={selectedFile} onRemove={removeFile} />}
               
-              <form onSubmit={handleSend} className="flex items-center gap-2">
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                handleSendMessage(input);
+              }} className="flex items-center gap-2">
                 <div className="relative flex-1">
                   <input
                     type="text"
