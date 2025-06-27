@@ -12,8 +12,19 @@ dotenv.config();
 const app = express();
 
 // --- Middleware --
+const allowedOrigins = process.env.FRONTEND_URLS ? process.env.FRONTEND_URLS.split(',') : [];
+
 const corsOptions = {
-  origin: ['http://localhost:3000', 'http://3.84.13.239', 'http://cloud-1-jay.s3-website-us-east-1.amazonaws.com/'],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin) || allowedOrigins.some(allowed => origin.startsWith(allowed))) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Cache', 'X-Requested-With'],
@@ -21,9 +32,38 @@ const corsOptions = {
   optionsSuccessStatus: 204
 };
 
-
 // Enable CORS with the specified options
 app.use(cors(corsOptions));
+
+// API Documentation Route
+app.get('/api', (req, res) => {
+  const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+  const apiDocs = {
+    message: 'Legal Manager API',
+    version: '1.0.0',
+    endpoints: {
+      healthCheck: `${baseUrl}/api/health`,
+      auth: {
+        login: `${baseUrl}/api/auth/login`,
+        register: `${baseUrl}/api/auth/register`,
+        forgotPassword: `${baseUrl}/api/auth/forgotpassword`,
+        resetPassword: `${baseUrl}/api/auth/resetpassword`,
+        verifyToken: `${baseUrl}/api/auth/verify-token`,
+        me: `${baseUrl}/api/auth/me`
+      },
+      clients: `${baseUrl}/api/clients`,
+      documents: `${baseUrl}/api/documents`,
+      cases: `${baseUrl}/api/cases`,
+      appointments: `${baseUrl}/api/appointments`,
+      tasks: `${baseUrl}/api/tasks`,
+      users: `${baseUrl}/api/users`,
+      notifications: `${baseUrl}/api/notifications`,
+      ai: `${baseUrl}/api/ai`
+    }
+  };
+  res.json(apiDocs);
+});
+
 app.use(express.json({
   limit: '10mb',
   strict: true

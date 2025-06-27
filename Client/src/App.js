@@ -77,7 +77,7 @@ export const AuthProvider = ({ children }) => {
         
         try {
           // Verify the token with the backend
-          const verifyResponse = await axios.post('http://localhost:5000/api/auth/verify-token', { token });
+          const verifyResponse = await axios.post(`${process.env.REACT_APP_API_URL}/api/auth/verify-token`, { token });
           
           if (verifyResponse.data && verifyResponse.data.success && verifyResponse.data.user) {
             // Token is valid, set user data
@@ -94,7 +94,7 @@ export const AuthProvider = ({ children }) => {
           console.error('Error during token validation:', verifyError);
           // If verify-token fails, try to get user data directly
           try {
-            const userResponse = await axios.get('http://localhost:5000/api/auth/me');
+            const userResponse = await axios.get(`${process.env.REACT_APP_API_URL}/api/auth/me`);
             if (userResponse.data && userResponse.data.user) {
               console.log('Fetched user data directly:', userResponse.data.user);
               setUser(userResponse.data.user);

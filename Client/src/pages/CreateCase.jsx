@@ -45,7 +45,7 @@ const CreateCase = () => {
     try {
       console.log('Sending case data:', formData);
       
-      const response = await fetch('http://localhost:5000/api/cases', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/cases`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
